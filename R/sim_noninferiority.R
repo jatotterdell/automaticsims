@@ -56,7 +56,7 @@ run_a_noninf_trial <- function(
   p_beat_ctrl <- matrix(0, K, P - 1, dimnames = list("interim" = 1:K, "arm" = arm_labs[-1]))
   p_noninf <- rep(0, K)
   
-  best <- srep(0, K)
+  best <- rep(0, K)
   active <- matrix(1, K, P - 1, dimnames = list("interim" = 1:K, "arm" = arm_labs[-1]))
   
   for(i in 1:20) {
