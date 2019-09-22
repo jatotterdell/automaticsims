@@ -110,6 +110,15 @@ run_a_noninf_trial <- function(
   return(
     list(
       mu = mu,
+      delta = delta,
+      kappa_lo_0 = kappa_lo_0,
+      kappa_lo_1 = kappa_lo_1,
+      kappa_hi_0 = kappa_hi_0,
+      kappa_hi_1 = kappa_hi_1,
+      kappa_no_0 = kappa_no_0,
+      kappa_no_1 = kappa_no_1,
+      brar = brar,
+      allocate_inactive = allocate_inactive,
       interim = i,
       stopped = stopped,
       superior = superior,
