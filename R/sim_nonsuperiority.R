@@ -1,0 +1,126 @@
+# This is a script to run simulations using "non-superiority" stopping.
+# The idea is as follwos:
+#  - we only consider superiority stopping if we find a single superior option
+#  - otherwise, we continue until the probability of any single superiority is low,
+#    that is, all arms are "non-superior"
+
+
+#' Run a non-superiority trial
+#' 
+#' Run a single trial using non-superiority stopping.
+#' The idea is as follows:
+#  - we only consider superiority stopping if we find a single superior option
+#  - otherwise, we continue until the probability of any single superiority is low,
+#    that is, all arms are "non-superior"
+#' 
+#' @param id The trial ID
+#' @param mu The true mean, must be length 13
+#' @param delta The superiority margin
+#' @param kappa_lo_0 The starting threshold to deactivate poor arms
+#' @param kappa_lo_1 The final threshold to deactivate poor arms
+#' @param kappa_hi_0 The starting threshold for superiority
+#' @param kappa_hi_1 The final threshold for superiority
+#' @param brar Use Response Adaptive Randomisation?
+#' @param allocate_inactive Continue to allocate subjects to arms meeting the inactive threshold?
+#' @param return_all Return all value, or only those from final analysis?
+#'
+#' @return A list of trial quantities
+#'
+#' @export
+run_a_nonsup_trial <- function(
+  id,
+  mu,
+  delta,
+  kappa_lo_0 = 0.01,
+  kappa_lo_1 = 0.05,
+  kappa_hi_0 = 0.90,
+  kappa_hi_1 = 0.85,
+  brar = FALSE,
+  allocate_inactive = FALSE,
+  return_all = FALSE
+) {
+  
+  # Setup
+  N <- 10000
+  K <- 20
+  M <- 500
+  P <- 13
+  arm_labs <- sprintf("%02d", 0:12)
+  mes_labs <- paste0("m", 1:4)
+  tim_labs <- paste0("t", 1:3)
+  
+  kappa_lo <- thres_seq(kappa_lo_0, kappa_lo_1, 1/2, K - 1)
+  kappa_hi <- thres_seq(kappa_hi_0, kappa_hi_1, 1/2, K - 1)
+  
+  p <- matrix(1/P, K + 1, P, dimnames = list("interim" = 0:K, "arm" = arm_labs))
+  n <- matrix(0, K, P, dimnames = list("interim" = 1:K, "arm" = arm_labs))
+  y <- matrix(0, K, P, dimnames = list("interim" = 1:K, "arm" = arm_labs))
+  m <- matrix(0, K, P, dimnames = list("interim" = 1:K, "arm" = arm_labs))
+  v <- matrix(0, K, P, dimnames = list("interim" = 1:K, "arm" = arm_labs))
+  
+  p_max <- matrix(0, K, P - 1, dimnames = list("interim" = 1:K, "arm" = arm_labs[-1]))
+  p_sup <- matrix(0, K, P, dimnames = list("interim" = 1:K, "arm" = arm_labs))
+  p_beat_ctrl <- matrix(0, K, P - 1, dimnames = list("interim" = 1:K, "arm" = arm_labs[-1]))
+  
+  active <- matrix(1, K, P - 1, dimnames = list("interim" = 1:K, "arm" = arm_labs[-1]))
+
+  for(i in 1:20) {
+    n_new <- table(factor(sample.int(P, M, replace = TRUE, prob = p[i, ]), levels = 1:P))
+    if(i == 1) {
+      n[i, ] <- n_new
+      y[i, ] <- rbinom(P, n_new, plogis(mu))
+    } else {
+      n[i, ] <- n[i - 1, ] + n_new
+      y[i, ] <- y[i - 1, ] + rbinom(P, n_new, plogis(mu))
+    }
+    mod <- vb_mod(y[i, ], n[i, ])
+    m[i, ] <- mod$mu
+    v[i, ] <- diag(mod$Sigma)
+    draws <- mvnfast::rmvn(1e4, m[i, ], sigma = mod$Sigma)
+    p_max[i, ] <- prob_max(draws[, -1])
+    p_sup[i, ] <- prob_each_superior_all(draws, delta)
+    p_beat_ctrl[i, ] <- prob_superior(draws[, -1], draws[, 1], delta)
+    active[i, ] <- as.numeric(p_sup[i, -1] > kappa_lo[i])
+    superior <- any(p_sup[i, ] > kappa_hi[i])
+    nonsuperior <- all(!active[i, ])
+    stopped <- superior | nonsuperior
+    if(brar) {
+      if(!allocate_inactive) {
+        w <- sqrt(p_max[i, ] * v[i, -1] / (n[i, -1] + 1))
+        w[!active[i, ]] <- 0
+        p[i + 1, -1] <- (1 - p[i, 1]) * w / sum(w)   
+      } else {
+        w <- sqrt(p_max[i, ] * v[i, -1] / (n[i, -1] + 1))
+        p[i + 1, -1] <- (1 - p[i, 1]) * w / sum(w)
+      }
+    } else{
+      if(!allocate_inactive) {
+        p[i + 1, -1] <- (1 - p[i, 1]) * active[i, ] / sum(active[i, ])    
+      } else {
+        p[i + 1, ] <- p[i, ]
+      }
+    }
+    if(stopped) break
+  }
+  
+  if(return_all) {ret_seq <- seq_len(i)} else {ret_seq <- i}  
+  
+  return(
+    list(
+      mu = mu,
+      interim = i,
+      stopped = stopped,
+      superior = superior,
+      nonsuperior = nonsuperior,
+      p = p[-1, ][ret_seq, ],
+      n = n[ret_seq, ],
+      y = y[ret_seq, ],
+      m = m[ret_seq, ],
+      v = v[ret_seq, ],
+      p_max = p_max[ret_seq, ],
+      p_sup = p_sup[ret_seq, ],
+      p_beat_ctrl = p_beat_ctrl[ret_seq, ],
+      active = active[ret_seq, ]
+    )
+  )
+}

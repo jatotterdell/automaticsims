@@ -1,0 +1,18 @@
+Package: automaticsims
+Title: Package for automatic simulations
+Version: 0.0.0.9000
+Authors@R: 
+    person(given = "James",
+           family = "Totterdell",
+           role = c("aut", "cre"),
+           email = "jatotterdell@gmail.com")
+Description: What the package does (one paragraph).
+License: What license it uses
+Encoding: UTF-8
+LazyData: true
+Imports: 
+    mvnfast,
+    Matrix,
+    matrixStats,
+    arrangements
+RoxygenNote: 6.1.1
