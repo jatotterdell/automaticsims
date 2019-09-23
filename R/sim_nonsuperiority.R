@@ -62,6 +62,7 @@ run_a_nonsup_trial <- function(
   p_sup <- matrix(0, K, P, dimnames = list("interim" = 1:K, "arm" = arm_labs))
   p_beat_ctrl <- matrix(0, K, P - 1, dimnames = list("interim" = 1:K, "arm" = arm_labs[-1]))
   
+  best <- rep(0, K)
   active <- matrix(1, K, P - 1, dimnames = list("interim" = 1:K, "arm" = arm_labs[-1]))
 
   for(i in 1:20) {
@@ -81,6 +82,7 @@ run_a_nonsup_trial <- function(
     p_sup[i, ] <- prob_each_superior_all(draws, delta)
     p_beat_ctrl[i, ] <- prob_superior(draws[, -1], draws[, 1], delta)
     active[i, ] <- as.numeric(p_sup[i, -1] > kappa_lo[i])
+    best[i] <- unname(which.max(p_max[i, ]))
     superior <- any(p_sup[i, ] > kappa_hi[i])
     nonsuperior <- all(!active[i, ])
     stopped <- superior | nonsuperior
@@ -108,6 +110,13 @@ run_a_nonsup_trial <- function(
   return(
     list(
       mu = mu,
+      delta = delta,
+      kappa_lo_0 = kappa_lo_0,
+      kappa_lo_1 = kappa_lo_1,
+      kappa_hi_0 = kappa_hi_0,
+      kappa_hi_1 = kappa_hi_1,
+      brar = brar,
+      allocate_inactive = allocate_inactive,
       interim = i,
       stopped = stopped,
       superior = superior,
@@ -120,7 +129,10 @@ run_a_nonsup_trial <- function(
       p_max = p_max[ret_seq, ],
       p_sup = p_sup[ret_seq, ],
       p_beat_ctrl = p_beat_ctrl[ret_seq, ],
-      active = active[ret_seq, ]
+      p_sup_pairwise = pairwise_superiority_all(draws, delta, replace = TRUE),
+      active = active[ret_seq, ],
+      best = best[ret_seq],
+      beat_ctrl = p_beat_ctrl[i, ] > kappa_hi[i]
     )
   )
 }
