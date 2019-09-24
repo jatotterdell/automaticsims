@@ -55,7 +55,6 @@ prob_superior <- function(a, b, delta = 0) {
 #' @param b A matrix
 #' @param delta The minimal effect bound
 #' @return A numeric probability
-#' @examples 
 prob_superior_all <- function (a, b, delta = 0) {
   return(mean(a > matrixStats::rowMaxs(b) + delta))
 }
