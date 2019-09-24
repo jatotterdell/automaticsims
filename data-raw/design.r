@@ -23,5 +23,9 @@ Xmes_con <- Xmes %*% Qmes
 Xtim_con <- Xtim %*% Qtim
 Xarm_con <- Xarm %*% Qarm
 X_con <- as.matrix(cbind(1, rbind(0, cbind(1, Xmes_con, Xtim_con, Xarm_con))))
+X_con_inv <- solve(X_con)
+X_con_inv_t <- t(X_con_inv)
+Q_t <- t(Q)
+X_con_inv_t_Q_t <- X_con_inv_t %*% Q_t
 
-usethis::use_data(X_con, Q, overwrite = TRUE, internal = TRUE)
+usethis::use_data(X_con, X_con_inv, X_con_inv_t, Q, Q_t, X_con_inv_t_Q_t, overwrite = TRUE, internal = TRUE)

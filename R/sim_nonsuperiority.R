@@ -59,6 +59,8 @@ run_a_nonsup_trial <- function(
   v <- matrix(0, K, P, dimnames = list("interim" = 1:K, "arm" = arm_labs))
   
   p_max <- matrix(0, K, P - 1, dimnames = list("interim" = 1:K, "arm" = arm_labs[-1]))
+  p_max_mes <- matrix(0, K, 4, dimnames = list("interim" = 1:K, "mes" = 1:4))
+  p_max_tim <- matrix(0, K, 3, dimnames = list("interim" = 1:K, "tim" = 1:3))
   p_sup <- matrix(0, K, P, dimnames = list("interim" = 1:K, "arm" = arm_labs))
   p_beat_ctrl <- matrix(0, K, P - 1, dimnames = list("interim" = 1:K, "arm" = arm_labs[-1]))
   
@@ -78,7 +80,10 @@ run_a_nonsup_trial <- function(
     m[i, ] <- mod$mu
     v[i, ] <- diag(mod$Sigma)
     draws <- mvnfast::rmvn(1e4, m[i, ], sigma = mod$Sigma)
+    beta_draws <- draws %*% X_con_inv_t_Q_t
     p_max[i, ] <- prob_max(draws[, -1])
+    p_max_mes[i, ] <- prob_max(beta_draws[, 3:6])
+    p_max_tim[i, ] <- prob_max(beta_draws[, 7:9])
     p_sup[i, ] <- prob_each_superior_all(draws, delta)
     p_beat_ctrl[i, ] <- prob_superior(draws[, -1], draws[, 1], delta)
     active[i, ] <- as.numeric(p_sup[i, -1] > kappa_lo[i])
@@ -127,9 +132,13 @@ run_a_nonsup_trial <- function(
       m = m[ret_seq, ],
       v = v[ret_seq, ],
       p_max = p_max[ret_seq, ],
+      p_max_mes = p_max_mes[ret_seq, ],
+      p_max_tim = p_max_tim[ret_seq, ],
       p_sup = p_sup[ret_seq, ],
       p_beat_ctrl = p_beat_ctrl[ret_seq, ],
-      p_sup_pairwise = pairwise_superiority_all(draws, delta, replace = TRUE),
+      p_sup_pairwise = pairwise_superiority_all(draws, 0, replace = TRUE),
+      p_sup_mes_pairwise = pairwise_superiority_all(beta_draws[, 3:6], 0, replace = TRUE),
+      p_sup_tim_pairwise = pairwise_superiority_all(beta_draws[, 7:9], 0, replace = TRUE),
       active = active[ret_seq, ],
       best = best[ret_seq],
       beat_ctrl = p_beat_ctrl[i, ] > kappa_hi[i]
