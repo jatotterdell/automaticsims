@@ -126,7 +126,7 @@ run_a_nonsup_trial <- function(
       stopped = stopped,
       superior = superior,
       nonsuperior = nonsuperior,
-      p = p[-1, ][ret_seq, ],
+      p = p[ret_seq, ],
       n = n[ret_seq, ],
       y = y[ret_seq, ],
       m = m[ret_seq, ],
