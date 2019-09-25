@@ -142,7 +142,7 @@ run_a_noninf_trial <- function(
       superior = superior,
       noninferior = noninferior,
       nonsuperior = nonsuperior,
-      p = p[-1, ][ret_seq, ],
+      p = p[ret_seq, ],
       n = n[ret_seq, ],
       y = y[ret_seq, ],
       m = m[ret_seq, ],
