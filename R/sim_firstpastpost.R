@@ -77,9 +77,9 @@ run_a_firstpastpost_trial <- function(
     best[i] <- unname(which.max(p_max[i, ]))
     active[i, ] <- as.numeric(p_beat_ctrl[i, ] > kappa_lo[i])
     superior <- any(p_beat_ctrl[i, ] > kappa_hi[i])
-    futile <- all(!active[i, ])
+    nonsuperior <- all(!active[i, ])
     
-    stopped <- superior | futile
+    stopped <- superior | nonsuperior
     if(brar) {
       if(!allocate_inactive) {
         w <- sqrt(p_max[i, ] * v[i, -1] / (n[i, -1] + 1))
@@ -114,7 +114,7 @@ run_a_firstpastpost_trial <- function(
       interim = i,
       stopped = stopped,
       superior = superior,
-      futile = futile,
+      nonsuperior = nonsuperior,
       p = p[ret_seq, ],
       n = n[ret_seq, ],
       y = y[ret_seq, ],

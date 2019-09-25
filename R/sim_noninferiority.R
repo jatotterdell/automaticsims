@@ -84,22 +84,22 @@ run_a_noninf_trial <- function(
     p_max_tim[i, ] <- prob_max(beta_draws[, 7:9])
     p_beat_ctrl[i, ] <- prob_superior(draws[, -1], draws[, 1], 0)
     best[i] <- unname(which.max(p_max[i, ]))
-    if(ind_comp_ctrl) {
-      active[i, ] <- as.numeric(p_max_all[i, ] > kappa_lo[i])  
+    if(!ind_comp_ctrl) {
+      active[i, ] <- as.numeric(p_max_all[i, -1] > kappa_lo[i])
+      superior <- any(p_max_all[i, ] > kappa_hi[i])
     } else {
-      active[i, ] <- as.numeric(p_max[i, ] > kappa_lo[i] & p_beat_ctrl[i, ] > kappa_lo[i])    
+      active[i, ] <- as.numeric(p_max[i, ] > kappa_lo[i] & p_beat_ctrl[i, ] > kappa_lo[i])  
+      superior <- any(p_max[i, ] > kappa_hi[i] & p_beat_ctrl[i, ] > kappa_hi[i])
     }
-  
     if(sum(active[i, ]) > 1) {
       p_noninf[i] <- prob_all_superior(draws[, -1][, active[i, ] & !(1:(P-1) == best[i]), drop = F], 
                                        draws[, -1][, best[i]], 
                                        -delta)  
     }
-    superior <- any(p_max[i, ] > kappa_hi[i] & p_beat_ctrl[i, ] > kappa_hi[i])
     noninferior <- any(p_noninf[i] > kappa_no[i])
-    futile <- all(!active[i, ])
+    nonsuperior <- all(!active[i, ])
     
-    stopped <- superior | noninferior | futile
+    stopped <- superior | noninferior | nonsuperior
     if(brar) {
       if(!allocate_inactive) {
         w <- sqrt(p_max[i, ] * v[i, -1] / (n[i, -1] + 1))
@@ -137,7 +137,7 @@ run_a_noninf_trial <- function(
       stopped = stopped,
       superior = superior,
       noninferior = noninferior,
-      futile = futile,
+      nonsuperior = nonsuperior,
       p = p[-1, ][ret_seq, ],
       n = n[ret_seq, ],
       y = y[ret_seq, ],
