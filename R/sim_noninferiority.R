@@ -14,6 +14,7 @@
 #' @param brar Use Response Adaptive Randomisation?
 #' @param allocate_inactive Continue to allocate subjects to arms meeting the inactive threshold?
 #' @param return_all Return all value, or only those from final analysis?
+#' @param ind_comp_ctrl Should deactivation be based on P(max trt arms) or P(max all arms)
 #'
 #' @return A list of trial quantities
 #'
@@ -30,7 +31,8 @@ run_a_noninf_trial <- function(
   kappa_no_1 = 0.60,
   brar = FALSE,
   allocate_inactive = FALSE,
-  return_all = FALSE
+  return_all = FALSE,
+  ind_comp_ctrl = FALSE
 ) {
   
   # Setup
@@ -52,6 +54,7 @@ run_a_noninf_trial <- function(
   m <- matrix(0, K, P, dimnames = list("interim" = 1:K, "arm" = arm_labs))
   v <- matrix(0, K, P, dimnames = list("interim" = 1:K, "arm" = arm_labs))
   
+  p_max_all <- matrix(0, K, P, dimnames = list("interim" = 1:K, "arm" = arm_labs))
   p_max <- matrix(0, K, P - 1, dimnames = list("interim" = 1:K, "arm" = arm_labs[-1]))
   p_max_mes <- matrix(0, K, 4, dimnames = list("interim" = 1:K, "mes" = 1:4))
   p_max_tim <- matrix(0, K, 3, dimnames = list("interim" = 1:K, "tim" = 1:3))
@@ -75,18 +78,24 @@ run_a_noninf_trial <- function(
     v[i, ] <- diag(mod$Sigma)
     draws <- mvnfast::rmvn(1e4, m[i, ], sigma = mod$Sigma)
     beta_draws <- draws %*% X_con_inv_t_Q_t
+    p_max_all[i, ] <- prob_max(draws)
     p_max[i, ] <- prob_max(draws[, -1])
     p_max_mes[i, ] <- prob_max(beta_draws[, 3:6])
     p_max_tim[i, ] <- prob_max(beta_draws[, 7:9])
     p_beat_ctrl[i, ] <- prob_superior(draws[, -1], draws[, 1], 0)
     best[i] <- unname(which.max(p_max[i, ]))
-    active[i, ] <- as.numeric(p_max[i, ] > kappa_lo[i] & p_beat_ctrl[i, ] > kappa_lo[i])
+    if(ind_comp_ctrl) {
+      active[i, ] <- as.numeric(p_max_all[i, ] > kappa_lo[i])  
+    } else {
+      active[i, ] <- as.numeric(p_max[i, ] > kappa_lo[i] & p_beat_ctrl[i, ] > kappa_lo[i])    
+    }
+  
     if(sum(active[i, ]) > 1) {
       p_noninf[i] <- prob_all_superior(draws[, -1][, active[i, ] & !(1:(P-1) == best[i]), drop = F], 
                                        draws[, -1][, best[i]], 
                                        -delta)  
     }
-    superior <- any(p_max[i, ] > kappa_hi[i])
+    superior <- any(p_max[i, ] > kappa_hi[i] & p_beat_ctrl[i, ] > kappa_hi[i])
     noninferior <- any(p_noninf[i] > kappa_no[i])
     futile <- all(!active[i, ])
     
@@ -134,6 +143,7 @@ run_a_noninf_trial <- function(
       y = y[ret_seq, ],
       m = m[ret_seq, ],
       v = v[ret_seq, ],
+      p_max_all = p_max_all[ret_seq, ],
       p_max = p_max[ret_seq, ],
       p_max_mes = p_max_mes[ret_seq, ],
       p_max_tim = p_max_tim[ret_seq, ],
@@ -144,6 +154,7 @@ run_a_noninf_trial <- function(
       p_sup_tim_pairwise = pairwise_superiority_all(beta_draws[, 7:9], 0, replace = TRUE),
       active = active[ret_seq, ],
       best = best[ret_seq],
+      sup = p_max[i, ] > kappa_hi[i],
       beat_ctrl = p_beat_ctrl[i, ] > kappa_hi[i]
     )
   )

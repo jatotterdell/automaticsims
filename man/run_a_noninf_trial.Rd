@@ -7,7 +7,7 @@
 run_a_noninf_trial(id, mu, delta, kappa_lo_0 = 0.01, kappa_lo_1 = 0.05,
   kappa_hi_0 = 0.95, kappa_hi_1 = 0.8, kappa_no_0 = 0.6,
   kappa_no_1 = 0.6, brar = FALSE, allocate_inactive = FALSE,
-  return_all = FALSE)
+  return_all = FALSE, ind_comp_ctrl = FALSE)
 }
 \arguments{
 \item{id}{The trial ID}
@@ -33,6 +33,8 @@ run_a_noninf_trial(id, mu, delta, kappa_lo_0 = 0.01, kappa_lo_1 = 0.05,
 \item{allocate_inactive}{Continue to allocate subjects to arms meeting the inactive threshold?}
 
 \item{return_all}{Return all value, or only those from final analysis?}
+
+\item{ind_comp_ctrl}{Should deactivation be based on P(max trt arms) or P(max all arms)}
 }
 \value{
 A list of trial quantities
