@@ -141,6 +141,7 @@ run_a_nonsup_trial <- function(
       p_sup_tim_pairwise = pairwise_superiority_all(beta_draws[, 7:9], 0, replace = TRUE),
       active = active[ret_seq, ],
       best = best[ret_seq],
+      sup = p_sup[i, ] > kappa_hi[i],
       beat_ctrl = p_beat_ctrl[i, ] > kappa_hi[i]
     )
   )

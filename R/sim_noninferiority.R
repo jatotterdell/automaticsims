@@ -62,6 +62,7 @@ run_a_noninf_trial <- function(
   p_noninf <- rep(0, K)
   
   best <- rep(0, K)
+  is_sup <- setNames(rep(0, P), arm_labs)
   active <- matrix(1, K, P - 1, dimnames = list("interim" = 1:K, "arm" = arm_labs[-1]))
   
   for(i in 1:20) {
@@ -86,15 +87,18 @@ run_a_noninf_trial <- function(
     best[i] <- unname(which.max(p_max[i, ]))
     if(!ind_comp_ctrl) {
       active[i, ] <- as.numeric(p_max_all[i, -1] > kappa_lo[i])
-      superior <- any(p_max_all[i, ] > kappa_hi[i])
+      is_sup <- p_max_all[i, ] > kappa_hi[i]
+      superior <- any(is_sup)
     } else {
       active[i, ] <- as.numeric(p_max[i, ] > kappa_lo[i] & p_beat_ctrl[i, ] > kappa_lo[i])  
-      superior <- any(p_max[i, ] > kappa_hi[i] & p_beat_ctrl[i, ] > kappa_hi[i])
+      is_sup <- c("00" = FALSE, p_max[i, ] > kappa_hi[i] & p_beat_ctrl[i, ] > kappa_hi[i])
+      superior <- any(is_sup)
     }
     if(sum(active[i, ]) > 1) {
-      p_noninf[i] <- prob_all_superior(draws[, -1][, active[i, ] & !(1:(P-1) == best[i]), drop = F], 
-                                       draws[, -1][, best[i]], 
-                                       -delta)  
+      p_noninf[i] <- prob_all_superior(
+        draws[, -1][, active[i, ] & !(1:(P-1) == best[i]), drop = F],
+        draws[, -1][, best[i]], 
+        -delta)  
     }
     noninferior <- any(p_noninf[i] > kappa_no[i])
     nonsuperior <- all(!active[i, ])
@@ -154,7 +158,7 @@ run_a_noninf_trial <- function(
       p_sup_tim_pairwise = pairwise_superiority_all(beta_draws[, 7:9], 0, replace = TRUE),
       active = active[ret_seq, ],
       best = best[ret_seq],
-      sup = p_max[i, ] > kappa_hi[i],
+      sup = is_sup,
       beat_ctrl = p_beat_ctrl[i, ] > kappa_hi[i]
     )
   )
