@@ -109,7 +109,7 @@ prob_each_superior_all <- function(mat, delta = 0) {
 pairwise_diff <- function (mat) {
   pair_comp <- arrangements::combinations(ncol(mat), 2)
   pair_mat <- apply(pair_comp, 1, function(x) mat[, x[1]] - mat[, x[2]])
-  colnames(pair_mat) <- apply(pair_comp, 1, paste, collapse = "-")
+  colnames(pair_mat) <- apply(pair_comp - 1, 1, paste, collapse = "-")
   return(pair_mat)
 }
 
@@ -124,7 +124,7 @@ pairwise_diff <- function (mat) {
 pairwise_diff_all <- function(mat, ...) {
   pair_comp <- arrangements::permutations(ncol(mat), 2, ...)
   pair_mat <- apply(pair_comp, 1, function(x) mat[, x[1]] - mat[, x[2]])
-  colnames(pair_mat) <- apply(pair_comp, 1, paste, collapse = "-")
+  colnames(pair_mat) <- apply(pair_comp - 1, 1, paste, collapse = "-")
   return(pair_mat)
 }
 

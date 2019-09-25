@@ -1,6 +1,9 @@
 #' Run a non-inferiority trial
 #' 
 #' Run a single trial using non-inferiority stopping.
+#' Stopping for noninferiority requires that:
+#' \item The best active arm is better than control and all inactive arms
+#' \item The all active arms are non-inferior to the best active arm
 #' 
 #' @param id The trial ID
 #' @param mu The true mean, must be length 13
@@ -60,6 +63,7 @@ run_a_noninf_trial <- function(
   p_max_tim <- matrix(0, K, 3, dimnames = list("interim" = 1:K, "tim" = 1:3))
   p_beat_ctrl <- matrix(0, K, P - 1, dimnames = list("interim" = 1:K, "arm" = arm_labs[-1]))
   p_noninf <- rep(0, K)
+  p_best_beat_inactive <- rep(0, K)
   
   best <- rep(0, K)
   is_sup <- setNames(rep(0, P), arm_labs)
@@ -98,9 +102,10 @@ run_a_noninf_trial <- function(
       p_noninf[i] <- prob_all_superior(
         draws[, -1][, active[i, ] & !(1:(P-1) == best[i]), drop = F],
         draws[, -1][, best[i]], 
-        -delta)  
+        -delta)
+      p_best_beat_inactive[i] <- prob_superior_all(draws[, -1][, best[i]], draws[, c(1, which(active[i, ] == 0) + 1)])
     }
-    noninferior <- any(p_noninf[i] > kappa_no[i])
+    noninferior <- any(p_noninf[i] > kappa_no[i] & p_best_beat_inactive > kappa_hi[i])
     nonsuperior <- all(!active[i, ])
     
     stopped <- superior | noninferior | nonsuperior
@@ -153,6 +158,7 @@ run_a_noninf_trial <- function(
       p_max_tim = p_max_tim[ret_seq, ],
       p_beat_ctrl = p_beat_ctrl[ret_seq, ],
       p_noninf = p_noninf[ret_seq],
+      p_best_beat_inactive = p_best_beat_inactive[ret_seq],
       p_sup_pairwise = pairwise_superiority_all(draws, 0, replace = TRUE),
       p_sup_mes_pairwise = pairwise_superiority_all(beta_draws[, 3:6], 0, replace = TRUE),
       p_sup_tim_pairwise = pairwise_superiority_all(beta_draws[, 7:9], 0, replace = TRUE),
