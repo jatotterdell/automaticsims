@@ -35,7 +35,8 @@ run_a_noninf_trial <- function(
   brar = FALSE,
   allocate_inactive = FALSE,
   return_all = FALSE,
-  ind_comp_ctrl = FALSE
+  ind_comp_ctrl = FALSE,
+  ctrl_alloc = 1/13
 ) {
   
   # Setup
@@ -52,6 +53,7 @@ run_a_noninf_trial <- function(
   kappa_no <- thres_seq(kappa_no_0, kappa_no_1, 1/2, K - 1)
   
   p <- matrix(1/P, K + 1, P, dimnames = list("interim" = 0:K, "arm" = arm_labs))
+  p[, 1] <- ctrl_alloc
   n <- matrix(0, K, P, dimnames = list("interim" = 1:K, "arm" = arm_labs))
   y <- matrix(0, K, P, dimnames = list("interim" = 1:K, "arm" = arm_labs))
   m <- matrix(0, K, P, dimnames = list("interim" = 1:K, "arm" = arm_labs))
@@ -87,7 +89,7 @@ run_a_noninf_trial <- function(
     p_max[i, ] <- prob_max(draws[, -1])
     p_max_mes[i, ] <- prob_max(beta_draws[, 3:6])
     p_max_tim[i, ] <- prob_max(beta_draws[, 7:9])
-    p_beat_ctrl[i, ] <- prob_superior(draws[, -1], draws[, 1], 0)
+    p_beat_ctrl[i, ] <- prob_superior(draws[, -1], draws[, 1], delta)
     best[i] <- unname(which.max(p_max[i, ]))
     if(!ind_comp_ctrl) {
       active[i, ] <- as.numeric(p_max_all[i, -1] > kappa_lo[i])
@@ -159,9 +161,9 @@ run_a_noninf_trial <- function(
       p_beat_ctrl = p_beat_ctrl[ret_seq, ],
       p_noninf = p_noninf[ret_seq],
       p_best_beat_inactive = p_best_beat_inactive[ret_seq],
-      p_sup_pairwise = pairwise_superiority_all(draws, 0, replace = TRUE),
-      p_sup_mes_pairwise = pairwise_superiority_all(beta_draws[, 3:6], 0, replace = TRUE),
-      p_sup_tim_pairwise = pairwise_superiority_all(beta_draws[, 7:9], 0, replace = TRUE),
+      p_sup_pairwise = pairwise_superiority_all(draws, delta, replace = TRUE),
+      p_sup_mes_pairwise = pairwise_superiority_all(beta_draws[, 3:6], delta, replace = TRUE),
+      p_sup_tim_pairwise = pairwise_superiority_all(beta_draws[, 7:9], delta, replace = TRUE),
       active = active[ret_seq, ],
       best = best[ret_seq],
       sup = is_sup,
