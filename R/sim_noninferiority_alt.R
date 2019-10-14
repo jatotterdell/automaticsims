@@ -112,9 +112,6 @@ run_a_noninf_trial_alt <- function(
         draws[, -1][, best[i]], 
         draws[, which(active[i, ] == 0) + 1, drop = F],
         delta)
-    } else {
-      p_noninf[i] <- NA
-      p_best_beat_inactive[i] <- NA
     }
     noninferior <- any(
       p_noninf[i] > kappa_no[i] & 
