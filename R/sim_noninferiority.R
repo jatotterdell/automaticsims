@@ -171,6 +171,8 @@ run_a_noninf_trial <- function(
       y = y[ret_seq, ],
       m = m[ret_seq, ],
       v = v[ret_seq, ],
+      p_sup = p_sup[ret_seq, ],
+      p_sup_trt = p_sup_trt[ret_seq, ],
       p_max_all = p_max_all[ret_seq, ],
       p_max = p_max[ret_seq, ],
       p_max_mes = p_max_mes[ret_seq, ],
