@@ -61,7 +61,7 @@ run_a_noninf_trial <- function(
   v <- matrix(0, K, P, dimnames = list("interim" = 1:K, "arm" = arm_labs))
   
   p_sup <- matrix(0, K, P, dimnames = list("interim" = 1:K, "arm" = arm_labs))
-  p_sup_trt <- matrix(0, K, P - 1, dimnames = list("interim" = 1:K, "arm" = arm_labs))
+  p_sup_trt <- matrix(0, K, P - 1, dimnames = list("interim" = 1:K, "arm" = arm_labs[-1]))
   p_max_all <- matrix(0, K, P, dimnames = list("interim" = 1:K, "arm" = arm_labs))
   p_max <- matrix(0, K, P - 1, dimnames = list("interim" = 1:K, "arm" = arm_labs[-1]))
   p_max_mes <- matrix(0, K, 4, dimnames = list("interim" = 1:K, "mes" = 1:4))
