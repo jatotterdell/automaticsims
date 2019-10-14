@@ -61,6 +61,7 @@ run_a_noninf_trial <- function(
   v <- matrix(0, K, P, dimnames = list("interim" = 1:K, "arm" = arm_labs))
   
   p_sup <- matrix(0, K, P, dimnames = list("interim" = 1:K, "arm" = arm_labs))
+  p_sup_trt <- matrix(0, K, P - 1, dimnames = list("interim" = 1:K, "arm" = arm_labs))
   p_max_all <- matrix(0, K, P, dimnames = list("interim" = 1:K, "arm" = arm_labs))
   p_max <- matrix(0, K, P - 1, dimnames = list("interim" = 1:K, "arm" = arm_labs[-1]))
   p_max_mes <- matrix(0, K, 4, dimnames = list("interim" = 1:K, "mes" = 1:4))
@@ -74,6 +75,7 @@ run_a_noninf_trial <- function(
   active <- matrix(1, K, P - 1, dimnames = list("interim" = 1:K, "arm" = arm_labs[-1]))
   
   for(i in 1:20) {
+    # Generate Data
     n_new <- table(factor(sample.int(P, M, replace = TRUE, prob = p[i, ]), levels = 1:P))
     if(i == 1) {
       n[i, ] <- n_new
@@ -82,18 +84,25 @@ run_a_noninf_trial <- function(
       n[i, ] <- n[i - 1, ] + n_new
       y[i, ] <- y[i - 1, ] + rbinom(P, n_new, plogis(mu))
     }
+    
+    # Fit model
     mod <- vb_mod(y[i, ], n[i, ])
     m[i, ] <- mod$mu
     v[i, ] <- diag(mod$Sigma)
+    
+    # Compute posterior quantities
     draws <- mvnfast::rmvn(1e4, m[i, ], sigma = mod$Sigma)
     beta_draws <- draws %*% X_con_inv_t_Q_t
     p_sup[i, ] <- prob_each_superior_all(draws, delta)
+    p_sup_trt[i, ] <- prob_each_superior_all(draws[, -1], delta)
     p_max_all[i, ] <- prob_max(draws)
     p_max[i, ] <- prob_max(draws[, -1])
     p_max_mes[i, ] <- prob_max(beta_draws[, 3:6])
     p_max_tim[i, ] <- prob_max(beta_draws[, 7:9])
     p_beat_ctrl[i, ] <- prob_superior(draws[, -1], draws[, 1], delta)
     best[i] <- unname(which.max(p_max[i, ]))
+    
+    # Deactivation rule
     if(!ind_comp_ctrl) {
       active[i, ] <- as.numeric(p_sup[i, -1] > kappa_lo[i])
       is_sup <- p_sup[i, ] > kappa_hi[i]
@@ -104,10 +113,12 @@ run_a_noninf_trial <- function(
       superior <- any(is_sup)
     }
     if(sum(active[i, ]) > 1) {
+      # Probability all active noninferior to superior by delta
       p_noninf[i] <- prob_all_superior(
         draws[, -1][, active[i, ] & !(1:(P-1) == best[i]), drop = F],
         draws[, -1][, best[i]], 
         -delta)
+      # Probability best active superior to all active and control
       p_best_beat_inactive[i] <- prob_superior_all(
         draws[, -1][, best[i]], 
         draws[, c(1, which(active[i, ] == 0) + 1), drop = F],
@@ -115,7 +126,6 @@ run_a_noninf_trial <- function(
     }
     noninferior <- any(p_noninf[i] > kappa_no[i] & p_best_beat_inactive[i] > kappa_hi[i])
     nonsuperior <- all(!active[i, ])
-    
     stopped <- superior | noninferior | nonsuperior
     if(brar) {
       if(!allocate_inactive) {
