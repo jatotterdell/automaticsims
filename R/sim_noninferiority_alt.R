@@ -1,4 +1,4 @@
-#' Run a non-inferiority trial
+#' Run an alternative non-inferiority trial
 #' 
 #' Run a single trial using non-inferiority stopping.
 #' Stopping for noninferiority requires that:
@@ -12,15 +12,15 @@
 #' @param kappa_hi_1 The final threshold for superiority
 #' @param kappa_no_0 The starting threshold for non-inferiority
 #' @param kappa_no_1 The final threshold for non-inferiority
+#' @param kappa_ctrl The control comparison threshold
 #' @param brar Use Response Adaptive Randomisation?
 #' @param allocate_inactive Continue to allocate subjects to arms meeting the inactive threshold?
 #' @param return_all Return all value, or only those from final analysis?
-#' @param ind_comp_ctrl Should deactivation be based on P(max trt arms) or P(max all arms)
 #'
 #' @return A list of trial quantities
 #'
 #' @export
-run_a_noninf_trial <- function(
+run_a_noninf_trial_alt <- function(
   id,
   mu,
   delta,
@@ -30,10 +30,10 @@ run_a_noninf_trial <- function(
   kappa_hi_1 = 0.80,
   kappa_no_0 = 0.60,
   kappa_no_1 = 0.60,
-  brar = FALSE,
+  kappa_ctrl = 0.95,
+  brar = TRUE,
   allocate_inactive = FALSE,
   return_all = FALSE,
-  ind_comp_ctrl = FALSE,
   ctrl_alloc = 1/13
 ) {
   
@@ -58,9 +58,7 @@ run_a_noninf_trial <- function(
   m <- matrix(0, K, P, dimnames = list("interim" = 1:K, "arm" = arm_labs))
   v <- matrix(0, K, P, dimnames = list("interim" = 1:K, "arm" = arm_labs))
   
-  p_sup <- matrix(0, K, P, dimnames = list("interim" = 1:K, "arm" = arm_labs))
   p_sup_trt <- matrix(0, K, P - 1, dimnames = list("interim" = 1:K, "arm" = arm_labs[-1]))
-  p_max_all <- matrix(0, K, P, dimnames = list("interim" = 1:K, "arm" = arm_labs))
   p_max <- matrix(0, K, P - 1, dimnames = list("interim" = 1:K, "arm" = arm_labs[-1]))
   p_max_mes <- matrix(0, K, 4, dimnames = list("interim" = 1:K, "mes" = 1:4))
   p_max_tim <- matrix(0, K, 3, dimnames = list("interim" = 1:K, "tim" = 1:3))
@@ -91,9 +89,7 @@ run_a_noninf_trial <- function(
     # Compute posterior quantities
     draws <- mvnfast::rmvn(1e4, m[i, ], sigma = mod$Sigma)
     beta_draws <- draws %*% X_con_inv_t_Q_t
-    p_sup[i, ] <- prob_each_superior_all(draws, delta)
     p_sup_trt[i, ] <- prob_each_superior_all(draws[, -1], delta)
-    p_max_all[i, ] <- prob_max(draws)
     p_max[i, ] <- prob_max(draws[, -1])
     p_max_mes[i, ] <- prob_max(beta_draws[, 3:6])
     p_max_tim[i, ] <- prob_max(beta_draws[, 7:9])
@@ -101,31 +97,30 @@ run_a_noninf_trial <- function(
     best[i] <- unname(which.max(p_max[i, ]))
     
     # Deactivation rule
-    if(!ind_comp_ctrl) {
-      active[i, ] <- as.numeric(p_sup[i, -1] > kappa_lo[i])
-      is_sup <- p_sup[i, ] > kappa_hi[i]
-      superior <- any(is_sup)
-    } else {
-      active[i, ] <- as.numeric(p_max[i, ] > kappa_lo[i] & p_beat_ctrl[i, ] > kappa_lo[i])  
-      is_sup <- c("00" = FALSE, p_max[i, ] > kappa_hi[i] & p_beat_ctrl[i, ] > kappa_hi[i])
-      superior <- any(is_sup)
-    }
+    active[i, ] <- as.numeric(p_sup_trt[i, ] > kappa_lo[i] & p_beat_ctrl[i, ] > 1 - kappa_ctrl)  
+    is_sup <- c("00" = FALSE, p_sup_trt[i, ] > kappa_hi[i] & p_beat_ctrl[i, ] > kappa_ctrl)
+    superior <- any(is_sup)
+      
     if(sum(active[i, ]) > 1) {
       # Probability all active noninferior to superior by delta
       p_noninf[i] <- prob_all_superior(
         draws[, -1][, active[i, ] & !(1:(P-1) == best[i]), drop = F],
         draws[, -1][, best[i]], 
         -delta)
-      # Probability best active superior to all active and control
+      # Probability best active superior to all inactive and control
       p_best_beat_inactive[i] <- prob_superior_all(
         draws[, -1][, best[i]], 
-        draws[, c(1, which(active[i, ] == 0) + 1), drop = F],
+        draws[, which(active[i, ] == 0) + 1, drop = F],
         delta)
     } else {
       p_noninf[i] <- NA
       p_best_beat_inactive[i] <- NA
     }
-    noninferior <- any(p_noninf[i] > kappa_no[i] & p_best_beat_inactive[i] > kappa_hi[i])
+    noninferior <- any(
+      p_noninf[i] > kappa_no[i] & 
+      p_best_beat_inactive[i] > kappa_hi[i] &
+      p_beat_ctrl[best[i], ] > kappa_ctrl
+    )
     nonsuperior <- all(!active[i, ])
     stopped <- superior | noninferior | nonsuperior
     if(brar) {
@@ -172,9 +167,7 @@ run_a_noninf_trial <- function(
       y = y[ret_seq, ],
       m = m[ret_seq, ],
       v = v[ret_seq, ],
-      p_sup = p_sup[ret_seq, ],
       p_sup_trt = p_sup_trt[ret_seq, ],
-      p_max_all = p_max_all[ret_seq, ],
       p_max = p_max[ret_seq, ],
       p_max_mes = p_max_mes[ret_seq, ],
       p_max_tim = p_max_tim[ret_seq, ],

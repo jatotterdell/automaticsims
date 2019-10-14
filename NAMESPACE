@@ -2,5 +2,6 @@
 
 export(run_a_firstpastpost_trial)
 export(run_a_noninf_trial)
+export(run_a_noninf_trial_alt)
 export(run_a_nonsup_trial)
 export(vb_mod)
