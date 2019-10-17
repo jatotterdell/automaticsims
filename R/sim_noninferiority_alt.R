@@ -58,6 +58,9 @@ run_a_noninf_trial_alt <- function(
   m <- matrix(0, K, P, dimnames = list("interim" = 1:K, "arm" = arm_labs))
   v <- matrix(0, K, P, dimnames = list("interim" = 1:K, "arm" = arm_labs))
   
+  p_rank_cell <- array(0, dim = c(K, P, P), dimnames = list("interim" = 1:K, "arm" = arm_labs, "rank" = 1:P))
+  p_rank_mes <- array(0, dim = c(K, 4, 4), dimnames = list("interim" = 1:K, "mes" = 1:4, "rank" = 1:4))
+  p_rank_tim <- array(0, dim = c(K, 3, 3), dimnames = list("interim" = 1:K, "tim" = 1:3, "rank" = 1:3))
   p_sup_trt <- matrix(0, K, P - 1, dimnames = list("interim" = 1:K, "arm" = arm_labs[-1]))
   p_max <- matrix(0, K, P - 1, dimnames = list("interim" = 1:K, "arm" = arm_labs[-1]))
   p_max_mes <- matrix(0, K, 4, dimnames = list("interim" = 1:K, "mes" = 1:4))

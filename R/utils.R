@@ -18,7 +18,18 @@ prob_max <- function(mat) {
 #' prob_rank(mvnfast::rmvn(1e4, 1:3, diag(1, 3)))
 prob_rank <- function(mat) {
   k <- ncol(mat)
-  apply(matrixStats::rowRanks(-mat), 2, matrixStats::binCounts, bx = 1:(k+1), right = F) / nrow(mat)
+  out <- apply(matrixStats::rowRanks(-mat), 2, matrixStats::binCounts, bx = 1:(k+1), right = F) / nrow(mat)
+  dimnames(out) <- list("rank" = 1:k, "arm" = 0:(k - 1))
+  return(out)
+}
+
+
+collapse_prob_rank <- function(mat) {
+  pair_rank <- arrangements::permutations(ncol(mat), 2, replace = T)
+  pair_rank[, 1] <- pair_rank[, 1] - 1
+  rank_vec <- c(mat)
+  names(rank_vec) <- apply(pair_rank, 1, paste, collapse = "-")
+  return(rank_vec)
 }
 
 #' Probability that items in a are inferior to b
@@ -132,21 +143,84 @@ pairwise_diff_all <- function(mat, ...) {
 #' Pairwise superiority
 #' 
 #' @param mat A matrix of samples
+#' @param delta Reference value of interest (negative for noninferiority)
 #' @return A vector of K(K-1)/2 pairwise probabiliy of superiority
-pairwise_superiority <- function(mat) {
+#' @export
+pairwise_superiority <- function(mat, delta = 0) {
   pmat <- pairwise_diff(mat)
-  apply(pmat, 2, function(x) mean(x > 0))
+  apply(pmat, 2, function(x) mean(x > delta))
 }
 
 
 #' Pairwise superiority for both directions
 #' 
+#' Pairwise superiority for all K*(K-1) comparisons rather than
+#' the reduced K(K-1)/2 one-way comparisons.
+#' 
 #' @param mat A matrix of samples
-#' @param delta The minimal effect of interest
-#' @return A vector of K(K-1)/2 pairwise probabiliy of superiority
+#' @param delta Reference value of interest (negative for noninferiority)
+#' @return A vector of K(K-1) pairwise probabiliy of superiority
+#' @export
 pairwise_superiority_all <- function(mat, delta = 0, ...) {
   pmat <- pairwise_diff_all(mat, ...)
   apply(pmat, 2, function(x) mean(x > delta))
+}
+
+
+#' Expected rank
+#' 
+#' Calculate expected ranks according to posterior draws.
+#' 
+#' @param mat A matrix of samples
+#' @return A vector of size ncol(mat) giving expected rank for each column
+#' @export
+expected_rank <- function(mat) {
+  matrixStats::colMeans2(matrixStats::rowRanks(mat))
+}
+
+
+#' Probability best h according to rank r
+#' 
+#' Probability that the h best populations ranked according to r
+#' are the best h.
+#' 
+#' @param mat A matrix of samples
+#' @param r A ranking vector giving the order from smallest to largest
+#' @return A vector giving the probability the h ranked means are superior
+#' to the other k-h ranked means
+#' @examples
+#' # Expect high probability that two best identified
+#' # Others should be 50/50
+#' D <- mvnfast::rmvn(4e4, c(1,1,2,2), diag(0.1,4))
+#' prob_h_best(D)
+#' @export
+prob_h_best <- function(mat, r = order(expected_rank(mat))) {
+  k <- ncol(mat)
+  r_mat <- mat[, r]
+  c_r_max <- matrixStats::rowCummaxs(r_mat)
+  c_r_min <- matrixStats::rowCummins(r_mat[, k:1])[, k:1]
+  setNames(c(0, matrixStats::colMeans2(c_r_min[, -1] > c_r_max[, -k])), k:1)
+}
+
+#' Probability that the h best populations ranked according to ord
+#' are the best h.
+#' 
+#' @param mat A matrix of samples
+#' @param r A ranking vector giving the order from smallest to largest
+#' @param delta An indifference zone value
+#' @return A vector giving the probability of indifference (equivalence) 
+#' between the h ranked means
+#' @examples
+#' # Expect high probability that two best identified
+#' # Others should be 50/50
+#' D <- mvnfast::rmvn(4e4, c(1,1,2,2), diag(0.1,4))
+#' rbind(prob_h_best(D), prob_h_indiff(D, delta = 1))
+#' @export
+prob_h_indiff <- function(mat, r = order(expected_rank(mat)), delta) {
+  k <- ncol(mat)
+  r_mat <- mat[, r][, k:1]
+  setNames(rev(matrixStats::colMeans2(
+    matrixStats::rowCummaxs(r_mat) - matrixStats::rowCummins(r_mat) < delta)), k:1)
 }
 
 
@@ -174,6 +248,26 @@ vb_mod <- function(y, n, ...) {
   return(list(
     mu = drop(X_con %*% mod$mu),
     Sigma = X_con %*% mod$Sigma %*% t(X_con),
+    beta_mu = drop(Q %*% mod$mu),
+    beta_Sigma  = Q %*% mod$Sigma %*% t(Q)
+  ))
+}
+
+
+#' Fit VB model with no control
+#' 
+#' @export
+vb_mod_trt <- function(y, n, ...) {
+  X_red <- X_con[-1, ][, -1]
+  Q_red <- Q[-1, ][, -1]
+  mod <- varapproxr::vb_logistic_n(
+    X_red, y, n, 
+    mu0 = rep(0, ncol(X_red)), Sigma0 = diag(10, ncol(X_red)),
+    mu_init = rep(0, ncol(X_red)), Sigma_init = diag(1, ncol(X_red)),
+    alg = "sj", maxiter_jj = 100)
+  return(list(
+    mu = drop(X_red %*% mod$mu),
+    Sigma = X_red %*% mod$Sigma %*% t(X_red),
     beta_mu = drop(Q %*% mod$mu),
     beta_Sigma  = Q %*% mod$Sigma %*% t(Q)
   ))

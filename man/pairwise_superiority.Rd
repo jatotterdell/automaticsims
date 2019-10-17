@@ -4,10 +4,12 @@
 \alias{pairwise_superiority}
 \title{Pairwise superiority}
 \usage{
-pairwise_superiority(mat)
+pairwise_superiority(mat, delta = 0)
 }
 \arguments{
 \item{mat}{A matrix of samples}
+
+\item{delta}{Reference value of interest (negative for noninferiority)}
 }
 \value{
 A vector of K(K-1)/2 pairwise probabiliy of superiority

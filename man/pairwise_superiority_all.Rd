@@ -9,11 +9,12 @@ pairwise_superiority_all(mat, delta = 0, ...)
 \arguments{
 \item{mat}{A matrix of samples}
 
-\item{delta}{The minimal effect of interest}
+\item{delta}{Reference value of interest (negative for noninferiority)}
 }
 \value{
-A vector of K(K-1)/2 pairwise probabiliy of superiority
+A vector of K(K-1) pairwise probabiliy of superiority
 }
 \description{
-Pairwise superiority for both directions
+Pairwise superiority for all K*(K-1) comparisons rather than
+the reduced K(K-1)/2 one-way comparisons.
 }
