@@ -50,7 +50,7 @@ run_indifference_trial <- function(
     p_max <- setNames(prob_max(draws[, -1]), arm_labs[-1])
     e_rank <- setNames(expected_rank(draws[, -1]), arm_labs[-1])
     o_rank <- order(e_rank)
-    best <- which.max(e_rank)
+    best <- unname(which.max(e_rank))
     p_h_best <- prob_h_best(draws[, -1], o_rank)
     p_h_idif <- prob_h_indiff(draws[, -1], o_rank, delta = delta_indiff)
     p_beat_ctrl <- setNames(prob_superior(draws[, -1], draws[, 1], delta_ctrl), arm_labs[-1])
@@ -66,7 +66,7 @@ run_indifference_trial <- function(
       in_best[which_best] <- TRUE
     } else {
       which_best <- NA
-      in_best <- rep(0, P)
+      in_best <- rep(0, P - 1)
     }
     beat_ctrl <- p_beat_ctrl > kappa_ctr
     lose_ctrl <- p_beat_ctrl < 1 - kappa_ctr
@@ -86,7 +86,7 @@ run_indifference_trial <- function(
     kappa_ind = kappa_ind,
     kappa_ctr = kappa_ctr,
     ctrl_alloc = ctrl_alloc,
-    inteirm = k,
+    interim = k,
     stopped = as.numeric(k < K),
     found_best = found_best,
     best_beat_ctrl = best_beat_ctrl,
