@@ -24,12 +24,16 @@ run_a_noninf_trial <- function(
   id,
   mu,
   delta,
-  kappa_lo_0 = 0.01,
-  kappa_lo_1 = 0.05,
-  kappa_hi_0 = 0.95,
-  kappa_hi_1 = 0.80,
-  kappa_no_0 = 0.60,
-  kappa_no_1 = 0.60,
+  kappa_act_0 = 0.01,
+  kappa_act_1 = 0.05,
+  kappa_sup_0 = 0.95,
+  kappa_sup_1 = 0.80,
+  kappa_ctr_0 = 0.95,
+  kappa_ctr_1 = 0.95,
+  kappa_noninf_0 = 0.60,
+  kappa_noninf_1 = 0.60,
+  kappa_nonsup_0 = 0.05,
+  kappa_nonsup_1 = 0.05,
   brar = FALSE,
   allocate_inactive = FALSE,
   return_all = FALSE,
@@ -46,9 +50,11 @@ run_a_noninf_trial <- function(
   mes_labs <- paste0("m", 1:4)
   tim_labs <- paste0("t", 1:3)
   
-  kappa_lo <- thres_seq(kappa_lo_0, kappa_lo_1, 1/2, K - 1)
-  kappa_hi <- thres_seq(kappa_hi_0, kappa_hi_1, 1/2, K - 1)
-  kappa_no <- thres_seq(kappa_no_0, kappa_no_1, 1/2, K - 1)
+  kappa_act <- thres_seq(kappa_act_0, kappa_act_1, 1/2, K - 1)
+  kappa_sup <- thres_seq(kappa_sup_0, kappa_sup_1, 1/2, K - 1)
+  kappa_ctr <- thres_seq(kappa_ctr_0, kappa_ctr_1, 1/2, K - 1)
+  kappa_noninf <- thres_seq(kappa_noninf_0, kappa_noninf_1, 1/2, K - 1)
+  kappa_nonsup <- thres_seq(kappa_nonsup_0, kappa_nonsup_1, 1/2, K - 1)
   
   p <- matrix(1/P, K + 1, P, dimnames = list("interim" = 0:K, "arm" = arm_labs))
   p[, 1] <- ctrl_alloc
@@ -102,12 +108,13 @@ run_a_noninf_trial <- function(
     
     # Deactivation rule
     if(!ind_comp_ctrl) {
-      active[i, ] <- as.numeric(p_sup[i, -1] > kappa_lo[i])
-      is_sup <- p_sup[i, ] > kappa_hi[i]
+      # active[i, ] <- as.numeric(p_sup[i, -1] > kappa_lo[i])
+      active[i, ] <- as.numeric(p_max[i, ] > kappa_act[i] & p_beat_ctrl[i, ] > 1 - kappa_ctr[i])
+      is_sup <- p_sup[i, ] > kappa_sup[i]
       superior <- any(is_sup)
     } else {
-      active[i, ] <- as.numeric(p_max[i, ] > kappa_lo[i] & p_beat_ctrl[i, ] > kappa_lo[i])  
-      is_sup <- c("00" = FALSE, p_max[i, ] > kappa_hi[i] & p_beat_ctrl[i, ] > kappa_hi[i])
+      active[i, ] <- as.numeric(p_max[i, ] > kappa_act[i] & p_beat_ctrl[i, ] > 1 - kappa_ctr[i])  
+      is_sup <- c("00" = FALSE, p_max[i, ] > kappa_sup[i] & p_beat_ctrl[i, ] > kappa_ctr[i])
       superior <- any(is_sup)
     }
     if(sum(active[i, ]) > 1) {
@@ -122,8 +129,9 @@ run_a_noninf_trial <- function(
         draws[, c(1, which(active[i, ] == 0) + 1), drop = F],
         delta)
     }
-    noninferior <- any(p_noninf[i] > kappa_no[i] & p_best_beat_inactive[i] > kappa_hi[i])
-    nonsuperior <- all(!active[i, ])
+    noninferior <- any(p_noninf[i] > kappa_noninf[i] & p_best_beat_inactive[i] > kappa_sup[i])
+    # nonsuperior <- all(!active[i, ])
+    nonsuperior <- as.numeric(max(p_sup[i, ]) < kappa_nonsup[i])
     stopped <- superior | noninferior | nonsuperior
     if(brar) {
       if(!allocate_inactive) {
@@ -151,12 +159,16 @@ run_a_noninf_trial <- function(
       id = id,
       mu = mu,
       delta = delta,
-      kappa_lo_0 = kappa_lo_0,
-      kappa_lo_1 = kappa_lo_1,
-      kappa_hi_0 = kappa_hi_0,
-      kappa_hi_1 = kappa_hi_1,
-      kappa_no_0 = kappa_no_0,
-      kappa_no_1 = kappa_no_1,
+      kappa_act_0 = kappa_act_0,
+      kappa_act_1 = kappa_act_1,
+      kappa_sup_0 = kappa_sup_0,
+      kappa_sup_1 = kappa_sup_1,
+      kappa_ctr_0 = kappa_ctr_0,
+      kappa_ctr_1 = kappa_ctr_1,
+      kappa_noninf_0 = kappa_noninf_0,
+      kappa_noninf_1 = kappa_noninf_1,
+      kappa_nonsup_0 = kappa_nonsup_0,
+      kappa_nonsup_1 = kappa_nonsup_1,
       brar = brar,
       allocate_inactive = allocate_inactive,
       interim = i,
@@ -184,7 +196,7 @@ run_a_noninf_trial <- function(
       active = active[ret_seq, ],
       best = best[ret_seq],
       sup = is_sup,
-      beat_ctrl = p_beat_ctrl[i, ] > kappa_hi[i]
+      beat_ctrl = p_beat_ctrl[i, ] > kappa_ctr[i]
     )
   )
 }

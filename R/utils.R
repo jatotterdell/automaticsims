@@ -194,12 +194,12 @@ expected_rank <- function(mat) {
 #' D <- mvnfast::rmvn(4e4, c(1,1,2,2), diag(0.1,4))
 #' prob_h_best(D)
 #' @export
-prob_h_best <- function(mat, r = order(expected_rank(mat))) {
+prob_h_best <- function(mat, r = order(expected_rank(mat)), delta = 0) {
   k <- ncol(mat)
   r_mat <- mat[, r]
   c_r_max <- matrixStats::rowCummaxs(r_mat)
   c_r_min <- matrixStats::rowCummins(r_mat[, k:1])[, k:1]
-  setNames(c(0, matrixStats::colMeans2(c_r_min[, -1] > c_r_max[, -k])), k:1)
+  setNames(c(1, matrixStats::colMeans2(c_r_min[, -1] - c_r_max[, -k] > delta)), k:1)
 }
 
 #' Probability that the h best populations ranked according to ord

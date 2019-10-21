@@ -23,10 +23,12 @@
 run_a_noninf_trial_alt <- function(
   id,
   mu,
-  delta,
+  delta_sup = 0.2,
+  delta_ctr = delta_sup,
+  delta_non = delta_sup,
   kappa_lo_0 = 0.01,
-  kappa_lo_1 = 0.05,
-  kappa_hi_0 = 0.95,
+  kappa_lo_1 = 0.01,
+  kappa_hi_0 = 0.90,
   kappa_hi_1 = 0.80,
   kappa_no_0 = 0.60,
   kappa_no_1 = 0.60,
@@ -92,11 +94,11 @@ run_a_noninf_trial_alt <- function(
     # Compute posterior quantities
     draws <- mvnfast::rmvn(1e4, m[i, ], sigma = mod$Sigma)
     beta_draws <- draws %*% X_con_inv_t_Q_t
-    p_sup_trt[i, ] <- prob_each_superior_all(draws[, -1], delta)
+    p_sup_trt[i, ] <- prob_each_superior_all(draws[, -1], delta_sup)
     p_max[i, ] <- prob_max(draws[, -1])
     p_max_mes[i, ] <- prob_max(beta_draws[, 3:6])
     p_max_tim[i, ] <- prob_max(beta_draws[, 7:9])
-    p_beat_ctrl[i, ] <- prob_superior(draws[, -1], draws[, 1], delta)
+    p_beat_ctrl[i, ] <- prob_superior(draws[, -1], draws[, 1], delta_ctr)
     best[i] <- unname(which.max(p_max[i, ]))
     
     # Deactivation rule
@@ -109,12 +111,12 @@ run_a_noninf_trial_alt <- function(
       p_noninf[i] <- prob_all_superior(
         draws[, -1][, active[i, ] & !(1:(P-1) == best[i]), drop = F],
         draws[, -1][, best[i]], 
-        -delta)
+        -delta_non)
       # Probability best active superior to all inactive and control
       p_best_beat_inactive[i] <- prob_superior_all(
         draws[, -1][, best[i]], 
         draws[, which(active[i, ] == 0) + 1, drop = F],
-        delta)
+        delta_sup)
     }
     noninferior <- any(
       p_noninf[i] > kappa_no[i] & 
@@ -148,7 +150,9 @@ run_a_noninf_trial_alt <- function(
     list(
       id = id,
       mu = mu,
-      delta = delta,
+      delta_sup = delta_sup,
+      delta_ctr = delta_ctr,
+      delta_non = delta_non,
       kappa_lo_0 = kappa_lo_0,
       kappa_lo_1 = kappa_lo_1,
       kappa_hi_0 = kappa_hi_0,
@@ -174,13 +178,15 @@ run_a_noninf_trial_alt <- function(
       p_beat_ctrl = p_beat_ctrl[ret_seq, ],
       p_noninf = p_noninf[ret_seq],
       p_best_beat_inactive = p_best_beat_inactive[ret_seq],
-      p_sup_pairwise = pairwise_superiority_all(draws, delta, replace = TRUE),
-      p_sup_mes_pairwise = pairwise_superiority_all(beta_draws[, 3:6], delta, replace = TRUE),
-      p_sup_tim_pairwise = pairwise_superiority_all(beta_draws[, 7:9], delta, replace = TRUE),
+      p_sup_pairwise = pairwise_superiority_all(draws, delta_sup, replace = TRUE),
+      p_sup_mes_pairwise = pairwise_superiority_all(beta_draws[, 3:6], delta_sup, replace = TRUE),
+      p_sup_tim_pairwise = pairwise_superiority_all(beta_draws[, 7:9], delta_sup, replace = TRUE),
       active = active[ret_seq, ],
       best = best[ret_seq],
+      is_best = setNames((best[i] + 1) == 2:P, arm_labs[-1]),
       sup = is_sup,
-      beat_ctrl = p_beat_ctrl[i, ] > kappa_hi[i]
+      beat_ctrl = p_beat_ctrl[i, ] > kappa_hi[i],
+      p_best_beat_ctrl = p_beat_ctrl[i, best[i]]
     )
   )
 }
