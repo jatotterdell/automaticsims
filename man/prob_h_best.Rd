@@ -4,7 +4,7 @@
 \alias{prob_h_best}
 \title{Probability best h according to rank r}
 \usage{
-prob_h_best(mat, r = order(expected_rank(mat)))
+prob_h_best(mat, r = order(expected_rank(mat)), delta = 0)
 }
 \arguments{
 \item{mat}{A matrix of samples}

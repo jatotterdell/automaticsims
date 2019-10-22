@@ -5,17 +5,25 @@
 #' 
 #' @param id The trial ID
 #' @param mu The true mean, must be length 13
-#' @param delta The superiority margin
-#' @param kappa_lo_0 The starting threshold to deactivate poor arms
-#' @param kappa_lo_1 The final threshold to deactivate poor arms
-#' @param kappa_hi_0 The starting threshold for superiority
-#' @param kappa_hi_1 The final threshold for superiority
-#' @param kappa_no_0 The starting threshold for non-inferiority
-#' @param kappa_no_1 The final threshold for non-inferiority
+#' @param delta_sup The superiority margin
+#' @param delta_ctr The superiority margin for control comparisons
+#' @param delta_noninf The noninferiority margin
+#' @param delta_pair The margin for pairwise comparisons
+#' @param kappa_act_0 The starting threshold to deactivate poor arms
+#' @param kappa_act_1 The final threshold to deactivate poor arms
+#' @param kappa_sup_0 The starting threshold for superiority
+#' @param kappa_sup_1 The final threshold for superiority
+#' @param kappa_ctr_0 The starting threshold for beating control
+#' @param kappa_ctr_1 THe final threshold for beating control
+#' @param kappa_noninf_0 The starting threshold for non-inferiority
+#' @param kappa_noninf_1 The final threshold for non-inferiority
+#' @param kappa_nonsup_0 The starting threshold for non-superiority
+#' @param kappa_nonsup_1 The final threshold for non-superiority
 #' @param brar Use Response Adaptive Randomisation?
 #' @param allocate_inactive Continue to allocate subjects to arms meeting the inactive threshold?
 #' @param return_all Return all value, or only those from final analysis?
-#' @param ind_comp_ctrl Should deactivation be based on P(max trt arms) or P(max all arms)
+#' @param ind_comp_ctrl Should deactivation be based on independent 
+#' P(max trt arms) and P(beat ctrl) or just global P(max all arms)
 #'
 #' @return A list of trial quantities
 #'

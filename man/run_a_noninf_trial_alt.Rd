@@ -4,18 +4,16 @@
 \alias{run_a_noninf_trial_alt}
 \title{Run an alternative non-inferiority trial}
 \usage{
-run_a_noninf_trial_alt(id, mu, delta, kappa_lo_0 = 0.01,
-  kappa_lo_1 = 0.05, kappa_hi_0 = 0.95, kappa_hi_1 = 0.8,
-  kappa_no_0 = 0.6, kappa_no_1 = 0.6, kappa_ctrl = 0.95,
-  brar = TRUE, allocate_inactive = FALSE, return_all = FALSE,
-  ctrl_alloc = 1/13)
+run_a_noninf_trial_alt(id, mu, delta_sup = 0.2, delta_ctr = delta_sup,
+  delta_non = delta_sup, kappa_lo_0 = 0.01, kappa_lo_1 = 0.01,
+  kappa_hi_0 = 0.9, kappa_hi_1 = 0.8, kappa_no_0 = 0.6,
+  kappa_no_1 = 0.6, kappa_ctrl = 0.95, brar = TRUE,
+  allocate_inactive = FALSE, return_all = FALSE, ctrl_alloc = 1/13)
 }
 \arguments{
 \item{id}{The trial ID}
 
 \item{mu}{The true mean, must be length 13}
-
-\item{delta}{The superiority margin}
 
 \item{kappa_lo_0}{The starting threshold to deactivate poor arms}
 
@@ -36,6 +34,8 @@ run_a_noninf_trial_alt(id, mu, delta, kappa_lo_0 = 0.01,
 \item{allocate_inactive}{Continue to allocate subjects to arms meeting the inactive threshold?}
 
 \item{return_all}{Return all value, or only those from final analysis?}
+
+\item{delta}{The superiority margin}
 }
 \value{
 A list of trial quantities
