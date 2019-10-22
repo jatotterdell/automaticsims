@@ -125,7 +125,6 @@ run_a_noninf_trial <- function(
     
     # Deactivation rule
     if(!ind_comp_ctrl) {
-      # active[i, ] <- as.numeric(p_sup[i, -1] > kappa_lo[i])
       active[i, ] <- as.numeric(p_max_all[i, -1] > kappa_act[i])
       is_sup <- p_sup[i, ] > kappa_sup[i]
       superior <- any(is_sup)
