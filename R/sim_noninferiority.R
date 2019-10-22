@@ -76,6 +76,7 @@ run_a_noninf_trial <- function(
   p_beat_ctrl <- matrix(0, K, P - 1, dimnames = list("interim" = 1:K, "arm" = arm_labs[-1]))
   p_noninf <- rep(0, K)
   p_best_beat_inactive <- rep(0, K)
+  p_ctrl_beat_all_trt <- rep(0, K)
   
   best <- rep(0, K)
   is_sup <- setNames(rep(0, P), arm_labs)
@@ -107,18 +108,21 @@ run_a_noninf_trial <- function(
     p_max_mes[i, ] <- prob_max(beta_draws[, 3:6])
     p_max_tim[i, ] <- prob_max(beta_draws[, 7:9])
     p_beat_ctrl[i, ] <- prob_superior(draws[, -1], draws[, 1], delta_ctr)
+    p_ctrl_beat_all_trt[i] <- prob_superior_all(draws[, 1], draws[, -1], delta_ctr)
     best[i] <- unname(which.max(p_max[i, ]))
     
     # Deactivation rule
     if(!ind_comp_ctrl) {
       # active[i, ] <- as.numeric(p_sup[i, -1] > kappa_lo[i])
-      active[i, ] <- as.numeric(p_max[i, ] > kappa_act[i] & p_beat_ctrl[i, ] > 1 - kappa_ctr[i])
+      active[i, ] <- as.numeric(p_max_all[i, -1] > kappa_act[i])
       is_sup <- p_sup[i, ] > kappa_sup[i]
       superior <- any(is_sup)
+      lose <- all(!active[i, ]) # Everything inactive so may as well stop
     } else {
-      active[i, ] <- as.numeric(p_max[i, ] > kappa_act[i] & p_beat_ctrl[i, ] > 1 - kappa_ctr[i])  
-      is_sup <- c("00" = FALSE, p_max[i, ] > kappa_sup[i] & p_beat_ctrl[i, ] > kappa_ctr[i])
+      active[i, ] <- as.numeric(p_max[i, ] > kappa_act[i] & p_beat_ctrl[i, ] > 1 - kappa_ctr[i]) 
+      is_sup <- p_sup[i, ] > kappa_sup[i]
       superior <- any(is_sup)
+      lose <- all(!active[i, ]) # Everything inactive so may as well stop
     }
     if(sum(active[i, ]) > 1) {
       # Probability all active noninferior to superior by delta
@@ -135,7 +139,6 @@ run_a_noninf_trial <- function(
     noninferior <- any(p_noninf[i] > kappa_noninf[i] & p_best_beat_inactive[i] > kappa_sup[i])
     # nonsuperior <- all(!active[i, ])
     nonsuperior <- max(p_sup_trt[i, ]) < kappa_nonsup[i]
-    lose <- all(!active[i, ])
     stopped <- superior | noninferior | nonsuperior | lose
     if(brar) {
       if(!allocate_inactive) {
