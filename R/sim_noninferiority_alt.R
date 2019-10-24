@@ -60,6 +60,7 @@ run_a_noninf_trial_alt <- function(
   N <- max(Nseq)
   K <- length(Nseq)
   M <- diff(c(0, Nseq))
+  P <- 13
   arm_labs <- sprintf("%02d", 0:12)
   mes_labs <- paste0("m", 1:4)
   tim_labs <- paste0("t", 1:3)
