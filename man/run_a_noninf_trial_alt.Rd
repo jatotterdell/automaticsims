@@ -2,32 +2,49 @@
 % Please edit documentation in R/sim_noninferiority_alt.R
 \name{run_a_noninf_trial_alt}
 \alias{run_a_noninf_trial_alt}
-\title{Run an alternative non-inferiority trial}
+\title{Run a non-inferiority trial}
 \usage{
-run_a_noninf_trial_alt(id, mu, delta_sup = 0.2, delta_ctr = delta_sup,
-  delta_non = delta_sup, kappa_lo_0 = 0.01, kappa_lo_1 = 0.01,
-  kappa_hi_0 = 0.9, kappa_hi_1 = 0.8, kappa_no_0 = 0.6,
-  kappa_no_1 = 0.6, kappa_ctrl = 0.95, brar = TRUE,
-  allocate_inactive = FALSE, return_all = FALSE, ctrl_alloc = 1/13)
+run_a_noninf_trial_alt(id, mu, delta_sup = 0.1, delta_ctr = delta_sup,
+  delta_noninf = delta_sup, delta_pair = delta_sup,
+  kappa_act_0 = 0.01, kappa_act_1 = 0.05, kappa_sup_0 = 0.95,
+  kappa_sup_1 = 0.8, kappa_ctr_0 = 0.95, kappa_ctr_1 = 0.95,
+  kappa_noninf_0 = 0.6, kappa_noninf_1 = 0.6, kappa_nonsup_0 = 0.1,
+  kappa_nonsup_1 = 0.1, brar = FALSE, allocate_inactive = FALSE,
+  return_all = FALSE, ind_comp_ctrl = FALSE, ctrl_alloc = 1/13,
+  Nseq = seq(500, 10000, length.out = 20))
 }
 \arguments{
 \item{id}{The trial ID}
 
 \item{mu}{The true mean, must be length 13}
 
-\item{kappa_lo_0}{The starting threshold to deactivate poor arms}
+\item{delta_sup}{The superiority margin}
 
-\item{kappa_lo_1}{The final threshold to deactivate poor arms}
+\item{delta_ctr}{The superiority margin for control comparisons}
 
-\item{kappa_hi_0}{The starting threshold for superiority}
+\item{delta_noninf}{The noninferiority margin}
 
-\item{kappa_hi_1}{The final threshold for superiority}
+\item{delta_pair}{The margin for pairwise comparisons}
 
-\item{kappa_no_0}{The starting threshold for non-inferiority}
+\item{kappa_act_0}{The starting threshold to deactivate poor arms}
 
-\item{kappa_no_1}{The final threshold for non-inferiority}
+\item{kappa_act_1}{The final threshold to deactivate poor arms}
 
-\item{kappa_ctrl}{The control comparison threshold}
+\item{kappa_sup_0}{The starting threshold for superiority}
+
+\item{kappa_sup_1}{The final threshold for superiority}
+
+\item{kappa_ctr_0}{The starting threshold for beating control}
+
+\item{kappa_ctr_1}{THe final threshold for beating control}
+
+\item{kappa_noninf_0}{The starting threshold for non-inferiority}
+
+\item{kappa_noninf_1}{The final threshold for non-inferiority}
+
+\item{kappa_nonsup_0}{The starting threshold for non-superiority}
+
+\item{kappa_nonsup_1}{The final threshold for non-superiority}
 
 \item{brar}{Use Response Adaptive Randomisation?}
 
@@ -35,12 +52,14 @@ run_a_noninf_trial_alt(id, mu, delta_sup = 0.2, delta_ctr = delta_sup,
 
 \item{return_all}{Return all value, or only those from final analysis?}
 
-\item{delta}{The superiority margin}
+\item{ind_comp_ctrl}{Should deactivation be based on independent 
+P(max trt arms) and P(beat ctrl) or just global P(max all arms)}
 }
 \value{
 A list of trial quantities
 }
 \description{
-Run a single trial using non-inferiority stopping.
-Stopping for noninferiority requires that:
+As sim_noninferiority.R, except
+rather than stopping for superiority by
+delta, always base superiority on prob(max).
 }
