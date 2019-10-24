@@ -29,7 +29,7 @@
 #' @return A list of trial quantities
 #'
 #' @export
-run_a_noninf_trial <- function(
+run_a_noninf_trial_alt <- function(
   id,
   mu,
   delta_sup = 0.1,
