@@ -147,7 +147,7 @@ run_a_noninf_trial_alt <- function(
       p_best_beat_inactive[i] <- prob_superior_all(
         draws[, -1][, best_trt[i]], 
         draws[, c(1, which(active[i, ] == 0) + 1), drop = F],
-        delta_sup)
+        0)
     }
     noninferior <- any(p_noninf[i] > kappa_noninf[i] & p_best_beat_inactive[i] > kappa_sup[i])
     nonsuperior <- max(p_sup_trt[i, ]) < kappa_nonsup[i]
