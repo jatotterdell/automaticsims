@@ -133,7 +133,7 @@ run_a_noninf_trial_alt <- function(
       lose <- all(!active[i, ]) # Everything inactive so may as well stop
     } else {
       active[i, ] <- as.numeric(p_max[i, ] > kappa_act[i] & p_beat_ctrl[i, ] > 1 - kappa_ctr[i]) 
-      is_sup <- p_max[i, ] > kappa_sup[i]
+      is_sup <- p_max[i, ] > kappa_sup[i] & p_beat_ctrl[i, ] > kappa_ctr[i]
       superior <- any(is_sup)
       lose <- all(!active[i, ]) # Everything inactive so may as well stop
     }
