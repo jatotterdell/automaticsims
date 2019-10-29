@@ -46,7 +46,8 @@ run_a_noninf_trial_alt <- function(
   kappa_noninf_1 = 0.60,
   kappa_nonsup_0 = 0.1,
   kappa_nonsup_1 = 0.1,
-  brar = FALSE,
+  brar = TRUE,
+  active_pmax = TRUE,
   allocate_inactive = FALSE,
   return_all = FALSE,
   ind_comp_ctrl = FALSE,
@@ -125,18 +126,64 @@ run_a_noninf_trial_alt <- function(
     best_trt[i] <- unname(which.max(p_max[i, ]))
     best[i] <- unname(which.max(p_max_all[i, ])) - 1
     
-    # Deactivation rule
+    # Superiority rule
     if(!ind_comp_ctrl) {
-      active[i, ] <- as.numeric(p_max_all[i, -1] > kappa_act[i])
       is_sup <- p_max_all[i, ] > kappa_sup[i]
       superior <- any(is_sup)
-      lose <- all(!active[i, ]) # Everything inactive so may as well stop
+      
     } else {
-      active[i, ] <- as.numeric(p_max[i, ] > kappa_act[i] & p_beat_ctrl[i, ] > 1 - kappa_ctr[i]) 
       is_sup <- p_max[i, ] > kappa_sup[i] & p_beat_ctrl[i, ] > kappa_ctr[i]
       superior <- any(is_sup)
-      lose <- all(!active[i, ]) # Everything inactive so may as well stop
     }
+    
+    # Activation rule
+    if(active_pmax) {
+      if(!ind_comp_ctrl) {
+        active[i, ] <- as.numeric(p_max_all[i, -1] > kappa_act[i])
+      } else {
+        active[i, ] <- as.numeric(p_max[i, ] > kappa_act[i] & p_beat_ctrl[i, ] > 1 - kappa_ctr[i]) 
+      }
+      
+      if(brar) {
+        if(!allocate_inactive) {
+          w <- sqrt(p_max[i, ] * v[i, -1] / (n[i, -1] + 1))
+          w[!active[i, ]] <- 0
+          p[i + 1, -1] <- (1 - p[i, 1]) * w / sum(w)   
+        } else {
+          w <- sqrt(p_max[i, ] * v[i, -1] / (n[i, -1] + 1))
+          p[i + 1, -1] <- (1 - p[i, 1]) * w / sum(w)
+        }
+      } else{
+        if(!allocate_inactive) {
+          p[i + 1, -1] <- (1 - p[i, 1]) * active[i, ] / sum(active[i, ])    
+        } else {
+          p[i + 1, ] <- p[i, ]
+        }
+      }
+    } else {
+      if(brar) {
+        if(!allocate_inactive) {
+          w <- sqrt(p_max[i, ] * v[i, -1] / (n[i, -1] + 1))
+          w[!active[i, ]] <- 0
+          p[i + 1, -1] <- (1 - p[i, 1]) * w / sum(w)
+          active[i, ] <- p[i + 1, -1] > kappa_act[i]
+          p[i + 1, -1][!active[i, ]] <- 0
+          p[i + 1, -1] <- (1 - p[i, 1]) * p[i + 1, -1]/ sum(p[i + 1, -1])
+        } else {
+          w <- sqrt(p_max[i, ] * v[i, -1] / (n[i, -1] + 1))
+          p[i + 1, -1] <- (1 - p[i, 1]) * w / sum(w)
+        }
+      } else{
+        if(!allocate_inactive) {
+          p[i + 1, -1] <- (1 - p[i, 1]) * active[i, ] / sum(active[i, ])    
+        } else {
+          p[i + 1, ] <- p[i, ]
+        }
+      }     
+    }
+
+
+    
     if(sum(active[i, ]) > 1) {
       # Probability all active noninferior to superior by delta
       p_noninf[i] <- prob_all_superior(
@@ -149,25 +196,13 @@ run_a_noninf_trial_alt <- function(
         draws[, c(1, which(active[i, ] == 0) + 1), drop = F],
         0)
     }
+    
+    # Stopping flags
     noninferior <- any(p_noninf[i] > kappa_noninf[i] & p_best_beat_inactive[i] > kappa_sup[i])
     nonsuperior <- max(p_sup_trt[i, ]) < kappa_nonsup[i]
+    lose <- all(p_beat_ctrl[i, ] < 1 - kappa_ctr[i]) # Everything worse than control so may as well stop
     stopped <- superior | noninferior | nonsuperior | lose
-    if(brar) {
-      if(!allocate_inactive) {
-        w <- sqrt(p_max[i, ] * v[i, -1] / (n[i, -1] + 1))
-        w[!active[i, ]] <- 0
-        p[i + 1, -1] <- (1 - p[i, 1]) * w / sum(w)   
-      } else {
-        w <- sqrt(p_max[i, ] * v[i, -1] / (n[i, -1] + 1))
-        p[i + 1, -1] <- (1 - p[i, 1]) * w / sum(w)
-      }
-    } else{
-      if(!allocate_inactive) {
-        p[i + 1, -1] <- (1 - p[i, 1]) * active[i, ] / sum(active[i, ])    
-      } else {
-        p[i + 1, ] <- p[i, ]
-      }
-    }
+    
     if(stopped) break
   }
   
@@ -195,6 +230,7 @@ run_a_noninf_trial_alt <- function(
       allocate_inactive = allocate_inactive,
       ctrl_alloc = ctrl_alloc,
       interim = i,
+      N = Nseq[i],
       stopped = stopped,
       superior = superior,
       noninferior = noninferior,
