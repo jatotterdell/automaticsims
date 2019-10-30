@@ -96,7 +96,7 @@ run_a_noninf_trial_alt <- function(
   is_sup <- setNames(rep(0, P), arm_labs)
   active <- matrix(1, K, P - 1, dimnames = list("interim" = 1:K, "arm" = arm_labs[-1]))
   
-  for(i in 1:20) {
+  for(i in 1:K) {
     # Generate Data
     n_new <- table(factor(sample.int(P, M[i], replace = TRUE, prob = p[i, ]), levels = 1:P))
     if(i == 1) {
@@ -201,7 +201,7 @@ run_a_noninf_trial_alt <- function(
     noninferior <- any(p_noninf[i] > kappa_noninf[i] & p_best_beat_inactive[i] > kappa_sup[i])
     nonsuperior <- max(p_sup_trt[i, ]) < kappa_nonsup[i]
     lose <- all(p_beat_ctrl[i, ] < 1 - kappa_ctr[i]) # Everything worse than control so may as well stop
-    stopped <- superior | noninferior | nonsuperior | lose
+    stopped <- (superior | noninferior | nonsuperior | lose) & (i < K)
     
     if(stopped) break
   }
