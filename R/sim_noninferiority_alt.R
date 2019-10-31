@@ -236,7 +236,7 @@ run_a_noninf_trial_alt <- function(
       noninferior = noninferior,
       nonsuperior = nonsuperior,
       lose = lose,
-      p = p[ret_seq, ],
+      p = p[ret_seq + 1, ],
       n = n[ret_seq, ],
       y = y[ret_seq, ],
       m = m[ret_seq, ],

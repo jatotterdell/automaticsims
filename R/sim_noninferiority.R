@@ -150,7 +150,7 @@ run_a_noninf_trial <- function(
     noninferior <- any(p_noninf[i] > kappa_noninf[i] & p_best_beat_inactive[i] > kappa_sup[i])
     # nonsuperior <- all(!active[i, ])
     nonsuperior <- max(p_sup_trt[i, ]) < kappa_nonsup[i]
-    stopped <- superior | noninferior | nonsuperior | lose
+    stopped <- superior | noninferior | nonsuperior | lose & (i < K)
     if(brar) {
       if(!allocate_inactive) {
         w <- sqrt(p_max[i, ] * v[i, -1] / (n[i, -1] + 1))
@@ -198,7 +198,7 @@ run_a_noninf_trial <- function(
       noninferior = noninferior,
       nonsuperior = nonsuperior,
       lose = lose,
-      p = p[ret_seq, ],
+      p = p[ret_seq + 1, ],
       n = n[ret_seq, ],
       y = y[ret_seq, ],
       m = m[ret_seq, ],
