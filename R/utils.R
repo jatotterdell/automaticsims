@@ -243,7 +243,7 @@ thres_seq <- function(a0, a1, r, t) {
 vb_mod <- function(y, n, ...) {
   mod <- varapproxr::vb_logistic_n(
     X_con, y, n, 
-    mu0 = rep(0, ncol(X_con)), Sigma0 = Sigma0),
+    mu0 = rep(0, ncol(X_con)), Sigma0 = Sigma0,
     mu_init = rep(0, ncol(X_con)), Sigma_init = diag(1, ncol(X_con)),
     alg = "sj", maxiter_jj = 100)
   return(list(
