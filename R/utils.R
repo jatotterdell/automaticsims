@@ -232,7 +232,8 @@ prob_h_indiff <- function(mat, r = order(expected_rank(mat)), delta) {
 #' @param t The sequence length from start to end
 #' @return A vector of length t + 1 giving the threshold sequence
 thres_seq <- function(a0, a1, r, t) {
-  a0 + (a1 - a0) * (0:t / t)^r
+  if(t == 0) return(a1)
+  return(a0 + (a1 - a0) * (0:t / t)^r)
 }
 
 
