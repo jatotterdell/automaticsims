@@ -226,6 +226,7 @@ run_a_noninf_trial_alt <- function(
       kappa_noninf_1 = kappa_noninf_1,
       kappa_nonsup_0 = kappa_nonsup_0,
       kappa_nonsup_1 = kappa_nonsup_1,
+      n_first = Nseq[1],
       brar = brar,
       allocate_inactive = allocate_inactive,
       ctrl_alloc = ctrl_alloc,
