@@ -206,10 +206,11 @@ run_a_noninf_trial_alt <- function(
     # Stopping flags
     if(!ind_comp_ctrl) {
       noninferior <- any(p_noninf[i] > kappa_noninf[i] & p_best_beat_inactive[i] > kappa_sup[i])
+      nonsuperior <- max(p_sup[i, ]) < kappa_nonsup[i]
     } else {
       noninferior <- any(p_noninf[i] > kappa_noninf[i] & p_best_beat_inactive[i] > kappa_sup[i] & p_beat_ctrl[best_trt[i], ] > kappa_ctr[i])
+      nonsuperior <- max(p_sup_trt[i, ]) < kappa_nonsup[i]
     }
-    noninferior <- any(p_noninf[i] > kappa_noninf[i] & p_best_beat_inactive[i] > kappa_sup[i])
     nonsuperior <- max(p_sup_trt[i, ]) < kappa_nonsup[i]
     lose <- all(p_beat_ctrl[i, ] < 1 - kappa_ctr[i]) # Everything worse than control so may as well stop
     stopped <- (superior | noninferior | nonsuperior | lose) & (i < K)
