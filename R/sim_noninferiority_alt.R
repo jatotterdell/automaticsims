@@ -191,13 +191,24 @@ run_a_noninf_trial_alt <- function(
         draws[, -1][, best_trt[i]], 
         -delta_noninf)
       # Probability best active superior to all active and control
-      p_best_beat_inactive[i] <- prob_superior_all(
-        draws[, -1][, best_trt[i]], 
-        draws[, c(1, which(active[i, ] == 0) + 1), drop = F],
-        0)
+      if(!ind_comp_ctrl) {
+        p_best_beat_inactive[i] <- prob_superior_all(
+          draws[, -1][, best_trt[i]], 
+          draws[, c(1, which(active[i, ] == 0) + 1), drop = F], 0) 
+      } else {
+        p_best_beat_inactive[i] <- prob_superior_all(
+          draws[, -1][, best_trt[i]], 
+          draws[, which(active[i, ] == 0) + 1, drop = F], 0) 
+      }
+
     }
     
     # Stopping flags
+    if(!ind_comp_ctrl) {
+      noninferior <- any(p_noninf[i] > kappa_noninf[i] & p_best_beat_inactive[i] > kappa_sup[i])
+    } else {
+      noninferior <- any(p_noninf[i] > kappa_noninf[i] & p_best_beat_inactive[i] > kappa_sup[i] & p_beat_ctrl[best_trt[i], ] > kappa_ctr[i])
+    }
     noninferior <- any(p_noninf[i] > kappa_noninf[i] & p_best_beat_inactive[i] > kappa_sup[i])
     nonsuperior <- max(p_sup_trt[i, ]) < kappa_nonsup[i]
     lose <- all(p_beat_ctrl[i, ] < 1 - kappa_ctr[i]) # Everything worse than control so may as well stop
@@ -254,6 +265,7 @@ run_a_noninf_trial_alt <- function(
       p_sup_pairwise = pairwise_superiority_all(draws, delta_pair, replace = TRUE),
       p_sup_mes_pairwise = pairwise_superiority_all(beta_draws[, 3:6], delta_pair, replace = TRUE),
       p_sup_tim_pairwise = pairwise_superiority_all(beta_draws[, 7:9], delta_pair, replace = TRUE),
+      p_sup_trt_ctr = mean(beta_draws[, 2] > 0),
       active = active[ret_seq, ],
       best_trt = best_trt[ret_seq],
       best = best[ret_seq],
