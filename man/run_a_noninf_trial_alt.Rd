@@ -4,14 +4,31 @@
 \alias{run_a_noninf_trial_alt}
 \title{Run a non-inferiority trial}
 \usage{
-run_a_noninf_trial_alt(id, mu, delta_sup = 0.1, delta_ctr = delta_sup,
-  delta_noninf = delta_sup, delta_pair = delta_sup,
-  kappa_act_0 = 0.01, kappa_act_1 = 0.05, kappa_sup_0 = 0.95,
-  kappa_sup_1 = 0.8, kappa_ctr_0 = 0.95, kappa_ctr_1 = 0.95,
-  kappa_noninf_0 = 0.6, kappa_noninf_1 = 0.6, kappa_nonsup_0 = 0.1,
-  kappa_nonsup_1 = 0.1, brar = FALSE, allocate_inactive = FALSE,
-  return_all = FALSE, ind_comp_ctrl = FALSE, ctrl_alloc = 1/13,
-  Nseq = seq(500, 10000, length.out = 20))
+run_a_noninf_trial_alt(
+  id,
+  mu,
+  delta_sup = 0.1,
+  delta_ctr = 0,
+  delta_noninf = 0.1,
+  delta_pair = 0,
+  kappa_act_0 = 0.01,
+  kappa_act_1 = 0.05,
+  kappa_sup_0 = 0.95,
+  kappa_sup_1 = 0.8,
+  kappa_ctr_0 = 0.95,
+  kappa_ctr_1 = 0.95,
+  kappa_noninf_0 = 0.6,
+  kappa_noninf_1 = 0.6,
+  kappa_nonsup_0 = 0.1,
+  kappa_nonsup_1 = 0.1,
+  brar = TRUE,
+  active_pmax = TRUE,
+  allocate_inactive = FALSE,
+  return_all = FALSE,
+  ind_comp_ctrl = FALSE,
+  ctrl_alloc = 1/13,
+  Nseq = seq(500, 10000, length.out = 20)
+)
 }
 \arguments{
 \item{id}{The trial ID}

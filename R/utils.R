@@ -167,6 +167,18 @@ pairwise_superiority_all <- function(mat, delta = 0, ...) {
 }
 
 
+#' Probability equivalent
+#' 
+#' Probability all arms in mat are equivalent within delta
+#' @param mat A matrix of samples
+#' @param delta Equivalence bound
+prob_all_equivalent <- function(mat, delta) {
+  a <- rep(1/ncol(mat), ncol(mat))
+  mean(apply(sweep(mat, 1, drop(mat %*% a), `-`), 1,
+             function(x) all(abs(x) <= delta)))
+}
+
+
 #' Expected rank
 #' 
 #' Calculate expected ranks according to posterior draws.
@@ -238,6 +250,9 @@ thres_seq <- function(a0, a1, r, t) {
 
 
 #' Fit VB model
+#' 
+#' @param y Respones
+#' @param n Sample size
 #' 
 #' @export
 vb_mod <- function(y, n, ...) {

@@ -4,9 +4,18 @@
 \alias{run_a_firstpastpost_trial}
 \title{Run a first past the post trial}
 \usage{
-run_a_firstpastpost_trial(id, mu, delta, kappa_lo_0 = 0.1,
-  kappa_lo_1 = 0.1, kappa_hi_0 = 0.95, kappa_hi_1 = 0.95,
-  brar = FALSE, allocate_inactive = FALSE, return_all = FALSE)
+run_a_firstpastpost_trial(
+  id,
+  mu,
+  delta,
+  kappa_lo_0 = 0.1,
+  kappa_lo_1 = 0.1,
+  kappa_hi_0 = 0.95,
+  kappa_hi_1 = 0.95,
+  brar = FALSE,
+  allocate_inactive = FALSE,
+  return_all = FALSE
+)
 }
 \arguments{
 \item{id}{The trial ID}

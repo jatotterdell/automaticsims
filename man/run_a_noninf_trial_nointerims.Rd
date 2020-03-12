@@ -4,9 +4,17 @@
 \alias{run_a_noninf_trial_nointerims}
 \title{Run a non-inferiority trial}
 \usage{
-run_a_noninf_trial_nointerims(id, mu, delta, kappa_lo = 0.01,
-  kappa_hi = 0.75, kappa_no = 0.5, kappa_ctrl = 0.95,
-  ctrl_alloc = 1/13, ind_comp_ctrl = FALSE)
+run_a_noninf_trial_nointerims(
+  id,
+  mu,
+  delta,
+  kappa_lo = 0.01,
+  kappa_hi = 0.75,
+  kappa_no = 0.5,
+  kappa_ctrl = 0.95,
+  ctrl_alloc = 1/13,
+  ind_comp_ctrl = FALSE
+)
 }
 \arguments{
 \item{id}{The trial ID}

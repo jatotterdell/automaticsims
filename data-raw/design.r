@@ -30,6 +30,6 @@ X_con_inv_t_Q_t <- X_con_inv_t %*% Q_t
 
 # Prior
 Sigma0 <- diag(c(10, 10, 10, 10, 10, 10, 10, rep(1, 6)))
-Sigma0 <- diag(10, ncol(X_con))
+Sigma0 <- diag(1.5, ncol(X_con))
 
 usethis::use_data(X_con, X_con_inv, X_con_inv_t, Q, Q_t, X_con_inv_t_Q_t, Sigma0, overwrite = TRUE, internal = TRUE)

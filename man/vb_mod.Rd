@@ -6,6 +6,11 @@
 \usage{
 vb_mod(y, n, ...)
 }
+\arguments{
+\item{y}{Respones}
+
+\item{n}{Sample size}
+}
 \description{
 Fit VB model
 }

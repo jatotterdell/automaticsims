@@ -4,9 +4,18 @@
 \alias{run_a_nonsup_trial}
 \title{Run a non-superiority trial}
 \usage{
-run_a_nonsup_trial(id, mu, delta, kappa_lo_0 = 0.01, kappa_lo_1 = 0.05,
-  kappa_hi_0 = 0.9, kappa_hi_1 = 0.85, brar = FALSE,
-  allocate_inactive = FALSE, return_all = FALSE)
+run_a_nonsup_trial(
+  id,
+  mu,
+  delta,
+  kappa_lo_0 = 0.01,
+  kappa_lo_1 = 0.05,
+  kappa_hi_0 = 0.9,
+  kappa_hi_1 = 0.85,
+  brar = FALSE,
+  allocate_inactive = FALSE,
+  return_all = FALSE
+)
 }
 \arguments{
 \item{id}{The trial ID}
