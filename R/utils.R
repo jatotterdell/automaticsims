@@ -1,9 +1,81 @@
+#' Mass-weighted urn randomisation
+#'
+#' @param target_alloc The target allocation ratios
+#' @param sample_size The number of allocations to generate
+#' @param alpha Parameter to control imbalance between arms
+#' @return A list detailing the mass-weighted-urn process.
+#' @export
+mass_weighted_urn_design <- function(
+  target_alloc,
+  sample_size,
+  alpha = 4
+) {
+  arms <- length(target_alloc)
+  prob_alloc <- target_alloc / sum(target_alloc)
+  # Masses
+  x <- matrix(0, sample_size + 1, arms)
+  x[1, ] <- alpha * prob_alloc
+  # Sample size
+  n <- matrix(0, sample_size + 1, arms)
+  # Random number
+  y <- runif(sample_size)
+  # Conditional selection probability
+  p <- matrix(0, sample_size + 1, arms)
+  # Imbalance
+  d <- rep(0, sample_size)
+  # Allocation Predictability
+  g <- rep(0, sample_size + 1)
+  # Treatment assignment
+  trt <- rep(0, sample_size)
+  
+  imbalance_cap <- sqrt(sum(((alpha - 1)*(1 - prob_alloc) + (arms - 1))^2))
+  
+  for(i in 2:(sample_size + 1)) {
+    # Update allocation probabilities
+    p[i - 1, ] <- pmax(alpha * prob_alloc - n[i - 1, ] + (i - 1)*prob_alloc, 0)
+    p[i - 1, ] <- p[i - 1, ] / sum(p[i - 1, ])
+    trt[i-1] <- findInterval(y[i - 1], c(0, cumsum(p[i - 1, ])))
+    # Update sample sizes
+    n[i, ] <- n[i - 1, ]
+    n[i, trt[i-1]] <- n[i, trt[i-1]] + 1
+    # Update urn masses
+    x[i, trt[i-1]] <- x[i - 1, trt[i-1]] - 1 + prob_alloc[trt[i-1]]
+    x[i, -trt[i-1]] <- x[i - 1, -trt[i-1]] + prob_alloc[-trt[i-1]]
+    # Calculate imbalance
+    d[i - 1] <- sqrt(sum((n[i, ] - (i - 1)*prob_alloc)^2))
+    # Calculate allocation predictability
+    g[i] <- d[i - 1] / alpha
+  }
+  return(list(
+    max_imbalance_bound = imbalance_cap,
+    imbalance = d,
+    alloc_predict = g,
+    rand_num = y,
+    trt = trt,
+    mass = x,
+    sample_size = n,
+    selection_prob = p))
+}
+
+
+#' Find first element of vector satisfying condition
+#' 
+#' @param x Logical vector
+#' @param v Value of NA
+#' @return First element satisfying condition
+findfirst <- function(x, v = NA) {
+  j <- which(x)
+  if(length(j)) min(j) else v
+}
+
+
 #' Probability that each column in mat is the maximum of all columns
 #' 
 #' @param mat A matrix of samples
 #' @return A vector of probabilities that each dimension is maximum
 #' @examples 
 #' prob_max(matrix(rnorm(1e4, 1:10), 1000, 10, byrow = T))
+#' @export
 prob_max <- function(mat) {
   as.numeric(prop.table(table(factor(max.col(mat), levels = 1:ncol(mat)))))
 }
@@ -16,6 +88,7 @@ prob_max <- function(mat) {
 #' @return A matrix of rank probabilities. Each row is a column in mat, and each column reflects a rank.
 #' @examples 
 #' prob_rank(mvnfast::rmvn(1e4, 1:3, diag(1, 3)))
+#' @export
 prob_rank <- function(mat) {
   k <- ncol(mat)
   out <- apply(matrixStats::rowRanks(-mat), 2, matrixStats::binCounts, bx = 1:(k+1), right = F) / nrow(mat)
@@ -41,6 +114,7 @@ collapse_prob_rank <- function(mat) {
 #' @examples 
 #' prob_inferior(mvnfast::rmvn(1e4, 1:3, diag(1, 3)), rnorm(1e4), 1)
 #' prob_inferior(rnorm(1e4), mvnfast::rmvn(1e4, 1:3, diag(1, 3)), 1)
+#' @export
 prob_inferior <- function(a, b, delta = 0) {
   return(colMeans(a < b + delta))
 }
@@ -54,11 +128,12 @@ prob_inferior <- function(a, b, delta = 0) {
 #' @examples 
 #' prob_superior(mvnfast::rmvn(1e4, 1:3, diag(1, 3)), rnorm(1e4), 1)
 #' prob_superior(rnorm(1e4), mvnfast::rmvn(1e4, 1:3, diag(1, 3)), 1)
+#' @export
 prob_superior <- function(a, b, delta = 0) {
-  return(colMeans(a > b + delta))
+  return(matrixStats::colMeans2(a > b + delta))
 }
 
-#' Probability superior
+#' Probability superior to all
 #' 
 #' Probability that a is superior to all items in b
 #' 
@@ -71,7 +146,7 @@ prob_superior_all <- function (a, b, delta = 0) {
 }
 
 
-#' Probability superior
+#' Probability all superior
 #' 
 #' Probability that all in a are superior b
 #' 
@@ -84,6 +159,7 @@ prob_superior_all <- function (a, b, delta = 0) {
 #' prob_all_superior(matrix(rnorm(1e4, 1:10), 1000, 10, byrow = T), rnorm(1e4, 0), 0.5)
 #' # All non-inferior
 #' prob_all_superior(matrix(rnorm(1e4, 1:10), 1000, 10, byrow = T), rnorm(1e4, 0), -0.5)
+#' @export
 prob_all_superior <- function (a, b, delta = 0) {
   return(mean(matrixStats::rowMins(a) > b + delta))
 }
@@ -172,6 +248,7 @@ pairwise_superiority_all <- function(mat, delta = 0, ...) {
 #' Probability all arms in mat are equivalent within delta
 #' @param mat A matrix of samples
 #' @param delta Equivalence bound
+#' @export
 prob_all_equivalent <- function(mat, delta) {
   a <- rep(1/ncol(mat), ncol(mat))
   mean(apply(sweep(mat, 1, drop(mat %*% a), `-`), 1,
@@ -238,6 +315,7 @@ prob_h_indiff <- function(mat, r = order(expected_rank(mat)), delta) {
 
 #' Threshold sequence
 #' 
+#' @export
 #' @param a0 The starting threshold
 #' @param a1 The ending threshold
 #' @param r The change transformation
@@ -258,14 +336,38 @@ thres_seq <- function(a0, a1, r, t) {
 vb_mod <- function(y, n, ...) {
   mod <- varapproxr::vb_logistic_n(
     X_con, y, n, 
-    mu0 = rep(0, ncol(X_con)), Sigma0 = Sigma0,
+    mu0 = rep(0, ncol(X_con)),
     mu_init = rep(0, ncol(X_con)), Sigma_init = diag(1, ncol(X_con)),
-    alg = "sj", maxiter_jj = 100)
+    alg = "sj", maxiter_jj = 100, ...)
   return(list(
+    mod_mu = mod$mu,
+    mod_Sigma = mod$Sigma,
     mu = drop(X_con %*% mod$mu),
     Sigma = X_con %*% mod$Sigma %*% t(X_con),
     beta_mu = drop(Q %*% mod$mu),
     beta_Sigma  = Q %*% mod$Sigma %*% t(Q)
+  ))
+}
+
+
+#' Fit VB model independent
+#' 
+#' @param y Respones
+#' @param n Sample size
+#' 
+#' @export
+vb_mod_ind <- function(y, n, ...) {
+  X <- cbind(1, rbind(0, diag(1, 12)))
+  mod <- varapproxr::vb_logistic_n(
+    X, y, n, 
+    mu0 = rep(0, ncol(X)),
+    mu_init = rep(0, ncol(X)), Sigma_init = diag(1, ncol(X)),
+    alg = "sj", maxiter_jj = 100, ...)
+  return(list(
+    beta_mu = drop(mod$mu),
+    beta_Sigma = mod$Sigma,
+    mu = drop(X %*% mod$mu),
+    Sigma = X %*% mod$Sigma %*% t(X)
   ))
 }
 
@@ -282,9 +384,33 @@ vb_mod_trt <- function(y, n, ...) {
     mu_init = rep(0, ncol(X_red)), Sigma_init = diag(1, ncol(X_red)),
     alg = "sj", maxiter_jj = 100)
   return(list(
+    mod_mu = mod$mu,
+    mod_Sigma = mod$Sigma,
     mu = drop(X_red %*% mod$mu),
     Sigma = X_red %*% mod$Sigma %*% t(X_red),
     beta_mu = drop(Q %*% mod$mu),
     beta_Sigma  = Q %*% mod$Sigma %*% t(Q)
   ))
+}
+
+#' Named list
+#' 
+#' @export
+nlist <- function (...) {
+  m <- match.call()
+  out <- list(...)
+  no_names <- is.null(names(out))
+  has_name <- if (no_names) 
+    FALSE
+  else nzchar(names(out))
+  if (all(has_name)) 
+    return(out)
+  nms <- as.character(m)[-1L]
+  if (no_names) {
+    names(out) <- nms
+  }
+  else {
+    names(out)[!has_name] <- nms[!has_name]
+  }
+  return(out)
 }

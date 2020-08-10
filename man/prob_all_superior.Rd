@@ -2,7 +2,7 @@
 % Please edit documentation in R/utils.R
 \name{prob_all_superior}
 \alias{prob_all_superior}
-\title{Probability superior}
+\title{Probability all superior}
 \usage{
 prob_all_superior(a, b, delta = 0)
 }
