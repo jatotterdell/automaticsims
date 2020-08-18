@@ -68,6 +68,15 @@ findfirst <- function(x, v = NA) {
   if(length(j)) min(j) else v
 }
 
+#' Calculate the differential entropy of multivariate normal
+#' 
+#' @param S A square matrix
+#' @return The log-determinant of S
+mvn_entropy <- function(S) {
+  res <- 0.5*(ncol(S)*(1 + log(2*pi)) + determinant(S)[[1]])
+  attributes(res) <- NULL
+  return(res)
+}
 
 #' Probability that each column in mat is the maximum of all columns
 #' 

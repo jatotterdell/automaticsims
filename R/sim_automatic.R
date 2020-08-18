@@ -12,9 +12,16 @@
 #' @param thres_ina Threshold for inadequacy
 #' @param use_mwu Use mass-weighted-urn randomisation
 #' @param mc_draws Number of Monte Carlo draws for posterior quantity calculation
+#' @param rar_scale Scaling factor for RAR
+#' @param rar_rule Which RAR rule to use
+#' @param drop_rule Which rule to use for dropping control
+#' @param ct_alloc What fixed allocation to control
+#' @param drop_perm Permanently drop interventions?
+#' @param enable_stopping Apply stopping rule or let trial run its course to max SS?
 #' @export
 run_automatic_trial <- function(
   mu,
+  Xdes = 1,
   Sigma0 = diag(c(2^2, rep(1, 12))),
   n_seq = seq(500, 10000, 500),
   delta_sup = log(1.1),
@@ -25,10 +32,16 @@ run_automatic_trial <- function(
   thres_eff = 0.99,
   thres_equ = 0.90,
   thres_ina = 0.99,
-  rar_scale = 0.5,
+  thres_ctr = 0.975,
   use_mwu = TRUE,
-  mc_draws = 1e4,
-  ct_alloc = 0.25
+  mc_draws = 2e4,
+  rar_scale = 0.5,
+  rar_rule = 1,
+  drop_rule = 1,
+  stop_rule = 1,
+  ct_alloc = sqrt(12) / (12 + sqrt(12)),
+  drop_perm = FALSE,
+  enable_stopping = FALSE
 ) {
   
   # Truth
@@ -44,6 +57,22 @@ run_automatic_trial <- function(
   num_fut <- length(which_fut)
   num_ina <- length(which_ina)
   
+  # Design
+  if(Xdes == 1) {
+    X <- X_con
+  } else if(Xdes == 2) {
+    X <- X_con_alt
+  } else if(Xdes == 3) {
+    X <- X_trt
+  } else if(Xdes == 4) {
+    X <- X_pol
+  } else {
+    X <- diag(1, 13)
+  }
+  unconT <- Q %*% pinv_X_con %*% X
+  ctrT   <- cbind(-1, diag(1, 12))
+  
+  
   n_max <- max(n_seq)
   n_int <- length(n_seq)
   n_new <- diff(c(0, n_seq))
@@ -51,10 +80,12 @@ run_automatic_trial <- function(
   arm_labs <- rownames(Xmap)
   mes_labs <- paste0("m", 1:4)
   tim_labs <- paste0("t", 1:3)
+  par_labs  <- paste0("b", 0:12)
   beta_labs <- c("b_ctr", "b_trt", paste0("b_m", 1:4), paste0("b_t", 1:3), 
                  paste0(rep(paste0("b_m", 1:4), each = 3), rep(paste0("t", 1:3), times = 4)))
   dn_all <- list("interim" = 1:n_int, "arm" = arm_labs)
   dn_trt <- list("interim" = 1:n_int, "arm" = arm_labs[-1])
+  dn_par  <- list("interim" = 1:n_int, "parameter" = par_labs)
   
   # Data
   n <- matrix(0, n_int, n_arms, dimnames = dn_all)
@@ -63,10 +94,24 @@ run_automatic_trial <- function(
   # Parameters
   arm_mean  <- matrix(0, n_int, n_arms, dimnames = dn_all)
   arm_var   <- matrix(0, n_int, n_arms, dimnames = dn_all)
+  
+  par_mean  <- matrix(0, n_int, n_arms, dimnames = dn_par)
+  par_var   <- matrix(0, n_int, n_arms, dimnames = dn_par)
+  
+  eff_mean  <- matrix(0, n_int, n_arms - 1, dimnames = dn_trt)
+  eff_var   <- matrix(0, n_int, n_arms - 1, dimnames = dn_trt)
+  
   beta_mean <- matrix(0, n_int, 21, dimnames = list("interim" = 1:n_int, "par" = beta_labs))
   beta_var  <- matrix(0, n_int, 21, dimnames = list("interim" = 1:n_int, "par" = beta_labs))
-  me_mean   <- matrix(0, n_int, 7, dimnames = list("interim" = 1:n_int, "treatment" = colnames(Xmap)[-1]))
-  me_var    <- matrix(0, n_int, 7, dimnames = list("interim" = 1:n_int, "treatment" = colnames(Xmap)[-1]))
+  
+  ctr_mean   <- matrix(0, n_int, nrow(Xmain), dimnames = list("interim" = 1:n_int, "contrast" = rownames(Xmain)))
+  ctr_var    <- matrix(0, n_int, nrow(Xmain), dimnames = list("interim" = 1:n_int, "contrast" = rownames(Xmain)))
+  
+  p_ctr_gt0  <- matrix(0, n_int, nrow(Xmain), dimnames = list("interim" = 1:n_int, "contrast" = rownames(Xmain)))
+  p_ctr_ltd  <- matrix(0, n_int, nrow(Xmain), dimnames = list("interim" = 1:n_int, "contrast" = rownames(Xmain)))
+  p_ctr_equ  <- matrix(0, n_int, nrow(Xmain), dimnames = list("interim" = 1:n_int, "contrast" = rownames(Xmain)))
+  is_ctr_gt0 <- matrix(FALSE, n_int, nrow(Xmain), dimnames = list("interim" = 1:n_int, "contrast" = rownames(Xmain)))
+  is_ctr_ltd <- matrix(FALSE, n_int, nrow(Xmain), dimnames = list("interim" = 1:n_int, "contrast" = rownames(Xmain)))
   
   # Store probability quantities
   p_rand    <- matrix(1/n_arms, n_int + 1, n_arms, dimnames = list("interim" = 0:n_int, "arm" = arm_labs))
@@ -87,16 +132,16 @@ run_automatic_trial <- function(
   
   # Store flags
   is_act <- matrix(TRUE, n_int, n_arms, dimnames = dn_all)      # Active
-  is_sup <- matrix(TRUE, n_int, n_arms, dimnames = dn_all) 
-  is_inf <- matrix(TRUE, n_int, n_arms, dimnames = dn_all) 
+  is_sup <- matrix(FALSE, n_int, n_arms, dimnames = dn_all) 
+  is_inf <- matrix(FALSE, n_int, n_arms, dimnames = dn_all) 
   is_sup_trt <- matrix(FALSE, n_int, n_arms - 1, dimnames = dn_trt) # Superior (best)
-  # is_inf <- matrix(FALSE, n_int, n_arms - 1, dimnames = dn_trt) # Inferior (not best)
-  # is_fut <- matrix(FALSE, n_int, n_arms - 1, dimnames = dn_trt) # Futile (not best by enough)
+  is_fut <- matrix(FALSE, n_int, n_arms - 1, dimnames = dn_trt) # Futile (not best by enough)
   # is_nin <- matrix(FALSE, n_int, n_arms - 1, dimnames = dn_trt) # Non-inferior (close enough to best)
-  # is_ina <- matrix(FALSE, n_int, n_arms - 1, dimnames = dn_trt) # Inadequate (not effective enough)
+  is_ina <- matrix(FALSE, n_int, n_arms - 1, dimnames = dn_trt) # Inadequate (not effective enough)
   is_eff <- matrix(FALSE, n_int, n_arms - 1, dimnames = dn_trt) # Effective (better than control)
-  # is_equ <- matrix(FALSE, n_int, n_arms - 1, dimnames = dn_trt) # Equivalent (same as control)
+  is_equ <- matrix(FALSE, n_int, n_arms - 1, dimnames = dn_trt) # Equivalent (same as control)
   # is_crb <- matrix(FALSE, n_int, n_arms - 1, dimnames = dn_trt) # Current best (currently best)
+  
   stopped <- FALSE
   
   for(i in 1:n_int) {
@@ -120,63 +165,95 @@ run_automatic_trial <- function(
     }
     
     # Fit model
-    # mod <- vb_mod(y[i, ], n[i, ], Sigma0 = Sigma0)
     mod <- varapproxr::vb_logistic_n(
-      X_con, y[i, ], n[i, ], rep(0, 13), Sigma0, 
+      X, y[i, ], n[i, ], rep(0, 13), Sigma0, 
       rep(0, 13), diag(1, 13), alg = "sj", maxiter_jj = 100)
     
-    eta_mu     <- X_con %*% mod$mu
-    eta_sigma  <- X_con %*% mod$Sigma %*% t(X_con)
-    beta_mu    <- Q %*% mod$mu
-    beta_sigma <- Q %*% mod$Sigma %*% t(Q)
+    # Summarise parameters
+    eta_mu      <- X %*% mod$mu
+    eta_sigma   <- X %*% mod$Sigma %*% t(X)
+    beta_mu     <- unconT %*% mod$mu
+    beta_sigma  <- unconT %*% mod$Sigma %*% t(unconT)
+    theta_mu    <- ctrT %*% eta_mu
+    theta_sigma <- ctrT %*% eta_sigma %*% t(ctrT)
     
+    par_mean[i, ]  <- drop(mod$mu)
+    par_var[i, ]   <- diag(mod$Sigma)
     arm_mean[i, ]  <- drop(eta_mu)
     arm_var[i, ]   <- diag(eta_sigma)
     beta_mean[i, ] <- drop(beta_mu)
     beta_var[i, ]  <- diag(beta_sigma)
-    me_mean[i, ]   <- drop(Xmain %*% beta_mu)
-    me_var[i, ]    <- diag(Xmain %*% beta_sigma %*% t(Xmain))
+    eff_mean[i, ]  <- drop(theta_mu)
+    eff_var[i, ]   <- diag(theta_sigma)
+    ctr_mean[i, ]  <- drop(Xmain %*% beta_mu)
+    ctr_var[i, ]   <- diag(Xmain %*% beta_sigma %*% t(Xmain))
     
-    # Compute posterior draws and quantities
-    draws      <- mvnfast::rmvn(mc_draws, eta_mu, sigma = eta_sigma)
-    # beta_draws <- draws %*% X_con_inv_t_Q_t
+    # Probabilities and decisions
+    p_eff[i, ]     <- 1 - pnorm(0, eff_mean[i, ], sqrt(eff_var[i, ]))
+    p_ina[i, ]     <- pnorm(delta_sup, eff_mean[i, ], sqrt(eff_var[i, ]))
+    is_eff[i, ]    <- p_eff[i, ] > thres_eff
+    is_ina[i, ]    <- p_ina[i, ] > thres_ina
     
+    p_ctr_gt0[i, ]  <- 1 - pnorm(0, ctr_mean[i, ], sqrt(ctr_var[i, ]))
+    p_ctr_ltd[i, ]  <- pnorm(delta_sup, ctr_mean[i, ], sqrt(ctr_var[i, ]))
+    p_ctr_equ[i, ]  <- pnorm(delta_sup, ctr_mean[i, ], sqrt(ctr_var[i, ])) - pnorm(-delta_sup, ctr_mean[i, ], sqrt(ctr_var[i, ]))
+    is_ctr_gt0[i, ] <- p_ctr_gt0[i, ] > thres_ctr
+    is_ctr_ltd[i, ] <- p_ctr_ltd[i, ] > thres_ina
+    
+    # Compute quantities requiring MC
+    draws          <- mvnfast::rmvn(mc_draws, eta_mu, sigma = eta_sigma)
     p_sup[i, ]     <- prob_max(draws)
     p_sup_trt[i, ] <- prob_max(draws[, -1])
-    p_fut[i, ]     <- 1 - prob_each_superior_all(draws[, -1], delta_sup)
-    best <- which.max(p_sup[i, ])
-
-    # Relative to control
-    diff_ctrl_draws <- sweep(draws[, -1], 1, draws[, 1])
-    p_eff[i, ] <- colMeans(apply(diff_ctrl_draws, 2, function(x) x > 0))
-    p_ina[i, ] <- 1 - colMeans(apply(diff_ctrl_draws, 2, function(x) x > delta_sup))
-    p_equ[i, ] <- colMeans(apply(diff_ctrl_draws, 2, function(x) abs(x) < delta_sup))
-    
-    # Relative to current best
-    # diff_best_draws <- sweep(draws[, -1], 1, draws[, best + 1])
-    # p_in_best[i, ]  <- matrixStats::colMeans2((matrixStats::rowRanks(draws) == 13) %*% Xmap)
-    # p_nin[i, ]      <- colMeans(apply(diff_best_draws, 2, function(x) x >= -delta_sup))
-    # p_best_mes[i, ] <- prob_max(beta_draws[, 3:6])
-    # p_best_tim[i, ] <- prob_max(beta_draws[, 7:9])
-    
-    # Check decisions
+    # p_fut[i, ]     <- 1 - prob_each_superior_all(draws[, -1], delta_sup)
     is_sup[i, ]     <- p_sup[i, ] > thres_sup
     is_sup_trt[i, ] <- p_sup_trt[i, ] > thres_sup
     is_inf[i, ]     <- p_sup[i, ] < thres_inf / (13 - !is_act[i, 1])
-    is_eff[i, ]     <- p_eff[i, ] > thres_eff
-    is_act[i, ]     <- !is_inf[i, ]
     
+    
+    # Relative to current best
+    # best <- which.max(p_sup[i, ])
+    # diff_best_draws <- sweep(draws[, -1], 1, draws[, best + 1])
+    # p_in_best[i, ]  <- matrixStats::colMeans2((matrixStats::rowRanks(draws) == 13) %*% Xmap)
+    # p_nin[i, ]      <- colMeans(apply(diff_best_draws, 2, function(x) x >= -delta_sup))
+    # beta_draws <- draws %*% X_con_inv_t_Q_t
+    # p_best_mes[i, ] <- prob_max(beta_draws[, 3:6])
+    # p_best_tim[i, ] <- prob_max(beta_draws[, 7:9])
+    
+    # Update active arms and allocations
+    
+    if(drop_rule == 1) {
+      is_act[i, 1]  <- !any(is_eff[i, ]) & !is_ctr_gt0[i, "b_trt"]  
+    } else if(drop_rule == 2) {
+      is_act[i, 1] <- !is_inf[i, 1]
+    }
+    
+    # is_act[i, -1] <- !is_fut[i, ]  
     if(i > 1) {
       # Drop control permanently
-      is_act[i, 1] <- is_act[i, 1] * is_act[i - 1, 1]
+      is_act[i, 1] <- as.logical(is_act[i, 1] * is_act[i - 1, 1])
+      # Drop interventions permanently?
+      if(drop_perm) {
+        is_act[i, ] <- as.logical(is_act[i, ] * is_act[i - 1, ])  
+      }
     }
     if(!is_act[i, 1]) p_rand[i + 1, 1] <- 0
 
     # Calculate active dependent quantities
     
     # Update allocations
-    w <- (p_sup[i, -1] * arm_var[i, -1] / (n[i, -1] + 1))^rar_scale
+    if(rar_rule == 1) {
+      w <- (p_sup[i, -1])^rar_scale  
+    } else if (rar_rule == 2) {
+      w <- (p_sup[i, -1] * arm_var[i, -1] / (n[i, -1] + 1))^rar_scale  
+    } else if (rar_rule == 3) {
+      w <- (p_eff[i, ])^rar_scale
+    } else if (rar_rule == 4) {
+      w <- (p_eff[i, ] * eff_var[i, ] / (n[i, -1] + 1))^rar_scale  
+    }
+    
+    # Fix the control allocation to zero if inactive
     w[!is_act[i, -1]] <- 0
+    # If nothing is active re-activate control otherwise apply RAR
     if(all(!is_act[i, ])) {
       p_rand[i + 1, 1] <- 1
       p_rand[i + 1, -1] <- 0
@@ -186,39 +263,45 @@ run_automatic_trial <- function(
     
     # Assess stopping criteria
     # If 
-    #  - any is best and effective
-    #  - all are inactive or all are futile
-    #  - all active are non-inferior and best is effective
-    any_best <- any(is_sup[i, ])
-    # any_effective_best <- any(is_sup[i, ] & is_eff[i, is_crb[i, ]])
-    all_inactive       <- !any(is_act[i, ])
-    # all_futile         <- all(is_fut[i, ])
-    # all_active_noninf  <- all(is_nin[i, is_act[i, ]] & is_eff[i, is_crb[i, ]])
-    stopped <- any_best | all_inactive
+    #  - any is best and control inactive
+    #  - all are inactive but control
+    #  - average effect no better than control
+    any_best     <- any(is_sup_trt[i, ] & !is_act[i, 1])
+    all_inactive <- !any(is_act[i, -1])
+    avg_ina      <- is_ctr_ltd[i, "b_trt"]
+    if(enable_stopping) {
+      if(stop_rule == 1) {
+        stopped <- any_best | all_inactive | avg_ina    
+      }
+    }
     
     if(stopped) break
   }
-  p_rand <- p_rand[-1, ]
+  p_rand <- p_rand[-1, , drop = F]
   
   idx <- 1:i
+  
+  dec_sup_trt_at <- apply(is_sup_trt, 2, findfirst)
+  dec_inf_at <- apply(is_inf, 2, findfirst)
+  dec_eff_at <- apply(is_eff, 2, findfirst)
+  dec_ina_at <- apply(is_ina, 2, findfirst)
   
   final <- list(
     
     result_quantities = list(
-      stop_early = stopped,
-      stop_at    = ifelse(stopped, i, NA),
-      any_best = any_best,
+      stop_early   = stopped,
+      stop_at      = ifelse(stopped, i, NA),
+      any_best     = any_best,
       all_inactive = all_inactive,
-      any_sup    = any(is_sup[i, ]),
-      all_fut    = all(is_fut[i, ]),
-      none_act   = !any(is_act[i, ]),
-      true_sup   = any(is_sup[i, which_sup]),
-      false_sup  = any(is_sup[i, which_inf]),
-      false_inf  = any(is_inf[i, which_sup]),
-      any_eff    = any(is_eff[i, ]),
-      any_false_eff  = any(is_eff[i, which_ineff]),
-      any_true_eff   = any(is_eff[i, which_eff]),
-      all_true_eff   = ifelse(num_eff > 0, all(is_eff[i, which_eff]), FALSE)
+      avg_ina      = avg_ina,
+      all_fut      = all(is_fut[i, ]),
+      true_sup     = any(is_sup[i, which_sup]),
+      false_sup    = any(is_sup[i, which_inf]),
+      false_inf    = any(is_inf[i, which_sup]),
+      any_eff      = any(is_eff[i, ]),
+      any_false_eff= any(is_eff[i, which_ineff]),
+      any_true_eff = any(is_eff[i, which_eff]),
+      all_true_eff = ifelse(num_eff > 0, all(is_eff[i, which_eff]), FALSE)
       # any_ina = any(is_ina[i, ]),
       # any_false_ina = any(is_ina[i, which_ada])
     ),
@@ -229,23 +312,41 @@ run_automatic_trial <- function(
       p_rand   = p_rand[idx, , drop = F],
       arm_mean = arm_mean[idx, , drop = F], 
       arm_var  = arm_var[idx, , drop = F],
-      p_sup  = p_sup[idx, , drop = F],
+      eff_mean = eff_mean[idx, , drop = F],
+      eff_var  = eff_var[idx, , drop = F],
+      p_sup     = p_sup[idx, , drop = F],
       p_sup_trt = p_sup_trt[idx, , drop = F],
-      p_eff = p_eff[idx, , drop = F],
+      p_eff     = p_eff[idx, , drop = F],
+      p_ina     = p_ina[idx, , drop = F],
       is_sup = is_sup[idx, , drop = F],
       is_inf = is_inf[idx, , drop = F],
       is_eff = is_eff[idx, , drop = F],
+      is_ina = is_ina[idx, , drop = F],
       is_act = is_act[idx, , drop = F]
     ),
     
-    treat_quantities = list(
-      me_mean = me_mean[idx, , drop = F],
-      me_var = me_var[idx, , drop = F]
+    ctr_quantities = list(
+      ctr_mean = ctr_mean[idx, , drop = F],
+      ctr_var  = ctr_var[idx, , drop = F],
+      p_ctr_gt0 = p_ctr_gt0[idx, , drop = F],
+      p_ctr_ltd = p_ctr_ltd[idx, , drop = F],
+      p_ctr_equ = p_ctr_equ[idx, , drop = F],
+      is_ctr_gt0 = is_ctr_gt0[idx, , drop = F],
+      is_ctr_ltd = is_ctr_ltd[idx, , drop = F]
     ),
     
-    par_quantities = list(
+    par1_quantities = list(
+      par_mean = par_mean[idx, , drop = F],
+      par_var  = par_var[idx, , drop = F]
+    ),
+    
+    par2_quantities = list(
       beta_mean = beta_mean[idx, , drop = F],
       beta_var  = beta_var[idx, , drop = F]
+    ),
+    
+    dec_quantities = loo::nlist(
+      dec_sup_trt_at, dec_inf_at, dec_eff_at, dec_ina_at
     )
     
   ) 
@@ -300,6 +401,7 @@ tibble_treat_quantities <- function(dat, final = TRUE, ...) {
 }
 
 
+
 #' Group list of trial outcomes into a tibble
 #'
 #' @param dat The results of `run_automatic_trial` as a list
@@ -309,9 +411,33 @@ tibble_treat_quantities <- function(dat, final = TRUE, ...) {
 #'
 #' @importFrom dplyr %>%
 #' @importFrom purrr reduce
-tibble_par_quantities <- function(dat, final = TRUE, ...) {
+tibble_ctr_quantities <- function(dat, final = TRUE, ...) {
   dplyr::bind_rows(parallel::mclapply(dat, function(i) {
-    tq <- i[["par_quantities"]]
+    tq <- i[["ctr_quantities"]]
+    lapply(1:length(tq),
+           function(x) {
+             tidyr::gather(tidyr::as_tibble(tq[[x]], rownames = "interim"), "contrast", !!names(tq)[x], -interim)
+           }) %>%
+      purrr::reduce(dplyr::full_join, by = c("interim", "contrast")) %>%
+      dplyr::mutate(contrast = forcats::fct_inorder(contrast)) %>%
+      dplyr::arrange(interim, contrast)}, ...), .id = "trial") %>%
+    dplyr::mutate(trial = as.numeric(trial), interim = as.numeric(interim)) %>%
+    dplyr::arrange(trial, interim)
+}
+
+
+#' Group list of trial outcomes into a tibble
+#'
+#' @param dat The results of `run_automatic_trial` as a list
+#' @param final Return data from final analysis or interims
+#' @param ... Other arguments to `mclapply`
+#' @export
+#'
+#' @importFrom dplyr %>%
+#' @importFrom purrr reduce
+tibble_par1_quantities <- function(dat, final = TRUE, ...) {
+  dplyr::bind_rows(parallel::mclapply(dat, function(i) {
+    tq <- i[["par1_quantities"]]
     lapply(1:length(tq),
            function(x) {
              tidyr::gather(tidyr::as_tibble(tq[[x]], rownames = "interim"), "parameter", !!names(tq)[x], -interim)
@@ -321,6 +447,48 @@ tibble_par_quantities <- function(dat, final = TRUE, ...) {
       dplyr::arrange(interim, parameter)}, ...), .id = "trial") %>%
     dplyr::mutate(trial = as.numeric(trial), interim = as.numeric(interim)) %>%
     dplyr::arrange(trial, interim)
+}
+
+
+#' Group list of trial outcomes into a tibble
+#'
+#' @param dat The results of `run_automatic_trial` as a list
+#' @param final Return data from final analysis or interims
+#' @param ... Other arguments to `mclapply`
+#' @export
+#'
+#' @importFrom dplyr %>%
+#' @importFrom purrr reduce
+tibble_par2_quantities <- function(dat, final = TRUE, ...) {
+  dplyr::bind_rows(parallel::mclapply(dat, function(i) {
+    tq <- i[["par2_quantities"]]
+    lapply(1:length(tq),
+           function(x) {
+             tidyr::gather(tidyr::as_tibble(tq[[x]], rownames = "interim"), "parameter", !!names(tq)[x], -interim)
+           }) %>%
+      purrr::reduce(dplyr::full_join, by = c("interim", "parameter")) %>%
+      dplyr::mutate(parameter = forcats::fct_inorder(parameter)) %>%
+      dplyr::arrange(interim, parameter)}, ...), .id = "trial") %>%
+    dplyr::mutate(trial = as.numeric(trial), interim = as.numeric(interim)) %>%
+    dplyr::arrange(trial, interim)
+}
+
+
+#' Group list of decision outcomes into a tibble
+#'
+#' @param dat The results of `ascot_trial2` as a list
+#' @param ... Other arguments to `mclapply`
+#' @export
+#'
+#' @importFrom dplyr %>%
+tibble_dec_quantities <- function(dat, ...) {
+  dplyr::bind_rows(lapply(dat, function(i) {
+    tq <- i[["dec_quantities"]]
+    tibble::enframe(tq) %>%
+      tidyr::unnest_wider(value) %>%
+      tidyr::gather(arm, value, -name) %>%
+      tidyr::spread(name, value)
+  }), .id = "trial")
 }
 
 

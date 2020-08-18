@@ -6,6 +6,7 @@
 \usage{
 run_automatic_trial(
   mu,
+  Xdes = 1,
   Sigma0 = diag(c(2^2, rep(1, 12))),
   n_seq = seq(500, 10000, 500),
   delta_sup = log(1.1),
@@ -16,10 +17,15 @@ run_automatic_trial(
   thres_eff = 0.99,
   thres_equ = 0.9,
   thres_ina = 0.99,
-  rar_scale = 0.5,
+  thres_ctr = 0.975,
   use_mwu = TRUE,
-  mc_draws = 10000,
-  ct_alloc = 0.25
+  mc_draws = 20000,
+  rar_scale = 0.5,
+  rar_rule = 1,
+  drop_rule = 1,
+  ct_alloc = sqrt(12)/(12 + sqrt(12)),
+  drop_perm = FALSE,
+  enable_stopping = FALSE
 )
 }
 \arguments{
@@ -46,6 +52,18 @@ run_automatic_trial(
 \item{use_mwu}{Use mass-weighted-urn randomisation}
 
 \item{mc_draws}{Number of Monte Carlo draws for posterior quantity calculation}
+
+\item{rar_scale}{Scaling factor for RAR}
+
+\item{rar_rule}{Which RAR rule to use}
+
+\item{drop_rule}{Which rule to use for dropping control}
+
+\item{ct_alloc}{What fixed allocation to control}
+
+\item{drop_perm}{Permanently drop interventions?}
+
+\item{enable_stopping}{Apply stopping rule or let trial run its course to max SS?}
 }
 \description{
 Run automatic trial simulation
