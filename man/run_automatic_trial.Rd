@@ -7,25 +7,30 @@
 run_automatic_trial(
   mu,
   Xdes = 1,
+  mu0 = c(qlogis(0.8), rep(0, 12)),
   Sigma0 = diag(c(2^2, rep(1, 12))),
   n_seq = seq(500, 10000, 500),
   delta_sup = log(1.1),
-  thres_sup = 0.85,
+  thres_sup = 0.8,
   thres_inf = 1 - thres_sup,
   thres_fut = 0.95,
   thres_nin = 0.9,
   thres_eff = 0.99,
+  thres_hrm = 0.01,
   thres_equ = 0.9,
-  thres_ina = 0.99,
-  thres_ctr = 0.975,
+  thres_ina = 0.95,
+  thres_ctr = 0.99,
   use_mwu = TRUE,
   mc_draws = 20000,
   rar_scale = 0.5,
   rar_rule = 1,
   drop_rule = 1,
+  stop_rule = 1,
   ct_alloc = sqrt(12)/(12 + sqrt(12)),
   drop_perm = FALSE,
-  enable_stopping = FALSE
+  enable_stopping = FALSE,
+  return_all = TRUE,
+  gen_prior = FALSE
 )
 }
 \arguments{
