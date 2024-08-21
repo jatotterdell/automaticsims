@@ -38,14 +38,19 @@ run_a_noninf_trial_alt <- function(
   delta_pair = 0,
   kappa_act_0 = 0.01,
   kappa_act_1 = 0.05,
+  kappa_act_r = 0.5,
   kappa_sup_0 = 0.95,
   kappa_sup_1 = 0.80,
+  kappa_sup_r = 0.5,
   kappa_ctr_0 = 0.95,
   kappa_ctr_1 = 0.95,
+  kappa_ctr_r = 0.5,
   kappa_noninf_0 = 0.60,
   kappa_noninf_1 = 0.60,
+  kappa_noninf_r = 0.5,
   kappa_nonsup_0 = 0.1,
   kappa_nonsup_1 = 0.1,
+  kappa_nonsup_r = 0.5,
   brar = TRUE,
   active_pmax = TRUE,
   allocate_inactive = FALSE,
@@ -66,11 +71,11 @@ run_a_noninf_trial_alt <- function(
   mes_labs <- paste0("m", 1:4)
   tim_labs <- paste0("t", 1:3)
   
-  kappa_act <- thres_seq(kappa_act_0, kappa_act_1, 1/2, K - 1)
-  kappa_sup <- thres_seq(kappa_sup_0, kappa_sup_1, 1/2, K - 1)
-  kappa_ctr <- thres_seq(kappa_ctr_0, kappa_ctr_1, 1/2, K - 1)
-  kappa_noninf <- thres_seq(kappa_noninf_0, kappa_noninf_1, 1/2, K - 1)
-  kappa_nonsup <- thres_seq(kappa_nonsup_0, kappa_nonsup_1, 1/2, K - 1)
+  kappa_act <- thres_seq(kappa_act_0, kappa_act_1, kappa_act_r, K - 1)
+  kappa_sup <- thres_seq(kappa_sup_0, kappa_sup_1, kappa_sup_r, K - 1)
+  kappa_ctr <- thres_seq(kappa_ctr_0, kappa_ctr_1, kappa_ctr_r, K - 1)
+  kappa_noninf <- thres_seq(kappa_noninf_0, kappa_noninf_1, kappa_noninf_r, K - 1)
+  kappa_nonsup <- thres_seq(kappa_nonsup_0, kappa_nonsup_1, kappa_nonsup_r, K - 1)
   
   p <- matrix(1/P, K + 1, P, dimnames = list("interim" = 0:K, "arm" = arm_labs))
   p[, 1] <- ctrl_alloc
@@ -79,6 +84,7 @@ run_a_noninf_trial_alt <- function(
   y <- matrix(0, K, P, dimnames = list("interim" = 1:K, "arm" = arm_labs))
   m <- matrix(0, K, P, dimnames = list("interim" = 1:K, "arm" = arm_labs))
   v <- matrix(0, K, P, dimnames = list("interim" = 1:K, "arm" = arm_labs))
+  mu_maxes <- matrix(0, K, 5, dimnames = list("interim" = 1:K, "val" = c("mu", "sig", "lo", "hi", "wi")))
   
   p_sup <- matrix(0, K, P, dimnames = list("interim" = 1:K, "arm" = arm_labs))
   p_sup_trt <- matrix(0, K, P - 1, dimnames = list("interim" = 1:K, "arm" = arm_labs[-1]))
@@ -115,6 +121,11 @@ run_a_noninf_trial_alt <- function(
     # Compute posterior quantities
     draws <- mvnfast::rmvn(1e4, m[i, ], sigma = mod$Sigma)
     beta_draws <- draws %*% X_con_inv_t_Q_t
+    max_draws <- matrixStats::rowMaxs(draws)
+    
+    mu_maxes[i, 1:4] <- c(mean(max_draws), var(max_draws), setNames(quantile(max_draws, prob = c(0.025, 0.975)), c("lo", "hi")))
+    mu_maxes[i, 5] <- mu_maxes[i, 4] - mu_maxes[i, 3]
+    
     p_sup[i, ] <- prob_each_superior_all(draws, delta_sup)
     p_sup_trt[i, ] <- prob_each_superior_all(draws[, -1], delta_sup)
     p_max_all[i, ] <- prob_max(draws)
@@ -254,6 +265,7 @@ run_a_noninf_trial_alt <- function(
       y = y[ret_seq, ],
       m = m[ret_seq, ],
       v = v[ret_seq, ],
+      mu_maxes = mu_maxes[ret_seq, ],
       p_sup = p_sup[ret_seq, ],
       p_sup_trt = p_sup_trt[ret_seq, ],
       p_max_all = p_max_all[ret_seq, ],

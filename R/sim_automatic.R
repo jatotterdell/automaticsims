@@ -33,8 +33,8 @@ run_automatic_trial <- function(
   thres_eff = function(t) 0.99,
   thres_hrm = function(t) 0.01,
   thres_equ = 0.90,
-  thres_ina = 0.99,
-  thres_ctr = 0.99,
+  thres_ina = function(t) 0.99,
+  thres_ctr = function(t) 0.99,
   use_mwu = TRUE,
   mc_draws = 1e4,
   rar_scale = 0.5,
@@ -221,14 +221,14 @@ run_automatic_trial <- function(
     p_ina[i, ]  <- pnorm(delta_sup, eff_mean[i, ], sqrt(eff_var[i, ]))
     is_eff[i, ] <- p_eff[i, ] > thres_eff(info)
     is_hrm[i, ] <- p_eff[i, ] < thres_hrm(info)
-    is_ina[i, ] <- p_ina[i, ] > thres_ina
+    is_ina[i, ] <- p_ina[i, ] > thres_ina(info)
     
     p_ctr_gt0[i, ]  <- 1 - pnorm(0, ctr_mean[i, ], sqrt(ctr_var[i, ]))
     p_ctr_ltd[i, ]  <- pnorm(delta_sup, ctr_mean[i, ], sqrt(ctr_var[i, ]))
     p_ctr_equ[i, ]  <- pnorm(delta_sup, ctr_mean[i, ], sqrt(ctr_var[i, ])) - pnorm(-delta_sup, ctr_mean[i, ], sqrt(ctr_var[i, ]))
-    is_ctr_gt0[i, ] <- p_ctr_gt0[i, ] > thres_ctr
-    is_ctr_lt0[i, ] <- p_ctr_gt0[i, ] < 1 - thres_ctr
-    is_ctr_ltd[i, ] <- p_ctr_ltd[i, ] > thres_ina
+    is_ctr_gt0[i, ] <- p_ctr_gt0[i, ] > thres_ctr(info)
+    is_ctr_lt0[i, ] <- p_ctr_gt0[i, ] < 1 - thres_ctr(info)
+    is_ctr_ltd[i, ] <- p_ctr_ltd[i, ] > thres_ina(info)
     
     # Compute quantities requiring MC
     draws           <- mvnfast::rmvn(mc_draws, eta_mu, sigma = eta_sigma)
@@ -339,10 +339,10 @@ run_automatic_trial <- function(
     if(enable_stopping) {
       if(stop_rule == 1) {
         # Stop if any single best, or all inactive, or on average inadequate
-        stopped <- any_best | all_inactive | avg_ina    
+        stopped <- any_best | all_inactive | avg_hrm    
       } else if(stop_rule == 2) {
-        # Stop if any single best or all inactive
-        stopped <- any_best | all_inactive   
+        # Stop if any single best or all inactive, or on average harmful
+        stopped <- any_best | all_inactive  
       } else if(stop_rule == 3) {
         # Original stopping rule, any single best, or all non-superior, or all inactive
         p_fut_trt[i, ]  <- 1 - prob_each_superior_all(draws[, -1], delta_sup)
@@ -359,6 +359,7 @@ run_automatic_trial <- function(
   p_rand <- p_rand[-1, , drop = F]
   
   dec_sup_trt_at <- apply(is_sup_trt, 2, findfirst)
+  dec_sup_at <- apply(is_sup_trt & is_eff, 2, findfirst)
   dec_inf_at <- apply(is_inf, 2, findfirst)
   dec_eff_at <- apply(is_eff, 2, findfirst)
   dec_hrm_at <- apply(is_hrm, 2, findfirst)
@@ -366,6 +367,7 @@ run_automatic_trial <- function(
   dec_drp_at <- apply(!is_act, 2, findfirst)
   
   dec_ctr_gt0_at <- apply(is_ctr_gt0, 2, findfirst)
+  dec_ctr_lt0_at <- apply(is_ctr_lt0, 2, findfirst)
   dec_ctr_ltd_at <- apply(is_ctr_ltd, 2, findfirst)
   
   if(return_all) {
@@ -429,6 +431,7 @@ run_automatic_trial <- function(
       any_best     = any_best,
       all_inactive = all_inactive,
       avg_ina      = avg_ina,
+      avg_hrm      = avg_hrm,
       all_fut      = all(is_fut[i, ]),
       true_sup     = any(is_sup[i, which_sup]),
       false_sup    = any(is_sup[i, which_inf]),
@@ -454,6 +457,7 @@ run_automatic_trial <- function(
     
     dec1_quantities = loo::nlist(
       dec_sup_trt_at, 
+      dec_sup_at,
       dec_inf_at, 
       dec_eff_at, 
       dec_hrm_at,
@@ -463,6 +467,7 @@ run_automatic_trial <- function(
     
     dec2_quantities = loo::nlist(
       dec_ctr_gt0_at,
+      dec_ctr_lt0_at,
       dec_ctr_ltd_at
     )
     
